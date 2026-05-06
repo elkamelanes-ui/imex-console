@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -314,7 +315,7 @@ tfoot td:first-child{text-align:left}
       <div class="hdr-logo">NOZ</div>
       <div>
         <div class="hdr-t">IMEX Performance Console</div>
-        <div class="hdr-s">IMEX Global Tunis · Centrale d'achat NOZ · MAJ 06/05/2026 16:00</div>
+        <div class="hdr-s">IMEX Global Tunis · Centrale d'achat NOZ · MAJ 06/05/2026 16:45</div>
       </div>
     </div>
     <div class="hdr-r">
@@ -477,7 +478,7 @@ async function fetchSheetFrom(sid, sheetName, step, skipLines=1) {
   });
 }
 
-// Fetch presence — essaie par nom d'onglet avec skip=1 puis skip=0
+// Fetch presence — cherche la ligne d'en-têtes réelle (Equipe/Prospecteur/Semaine)
 async function fetchPresenceSheet(sid, sheetName, step, parseFn) {
   setStep(step);
   const url = `https://docs.google.com/spreadsheets/d/${sid}/export?format=csv&sheet=${encodeURIComponent(sheetName)}`;
@@ -485,20 +486,15 @@ async function fetchPresenceSheet(sid, sheetName, step, parseFn) {
     const r = await fetch(url);
     if (!r.ok) { console.error('[Présence] HTTP', r.status, sheetName); return []; }
     const rawText = await r.text();
-    if (rawText.trim().startsWith('<')) { console.error('[Présence] HTML reçu — sheet pas publié?'); return []; }
-    // Essaie skip=1 (row instruction) puis skip=0
-    for (const skip of [1, 0]) {
-      const lines = rawText.split(/\r?\n/);
-      const text  = skip > 0 ? lines.slice(skip).join('\n') : rawText;
-      const rows  = await new Promise(res => Papa.parse(text, {header:true, skipEmptyLines:true, complete:r=>res(r.data)}));
-      const parsed = parseFn(rows);
-      if (parsed.length > 0) {
-        console.log('[Présence]', sheetName, '→', parsed.length, 'lignes (skip='+skip+')');
-        return parsed;
-      }
-    }
-    console.warn('[Présence]', sheetName, '→ 0 lignes après parsing — vérifier les données');
-    return [];
+    if (rawText.trim().startsWith('<')) { console.error('[Présence] HTML reçu'); return []; }
+    const lines = rawText.split(/\r?\n/);
+    // Trouver la vraie ligne d'en-têtes (contient Equipe ou Prospecteur ou Semaine)
+    const hIdx = lines.findIndex(l => /equipe|prospecteur|semaine/i.test(l));
+    const cleanText = hIdx >= 0 ? lines.slice(hIdx).join('\n') : rawText;
+    const rows = await new Promise(res => Papa.parse(cleanText, {header:true, skipEmptyLines:true, complete:r=>res(r.data)}));
+    const parsed = parseFn(rows);
+    console.log('[Présence]', sheetName, '→', parsed.length, 'lignes (header ligne', hIdx, ')');
+    return parsed;
   } catch(e) { console.error('[Présence]', e); return []; }
 }
 
@@ -630,15 +626,21 @@ async function loadSheets() {
     } catch(e) { D.presDaily = []; }
 
 
-    // COUV — A=Equipe(sparse), B=Nom, C=Non util, D=OUI, E=Total, F=TX COUV
-    // Cherche la vraie ligne d'en-têtes (contient "equipe" ou "acheteur")
+    // COUV — cherche en-têtes réels: A=Equipe(sparse), B=Nom, C=Non util, D=OUI, E=Total, F=TX
     try {
       const couvResp = await fetch(sheetUrl(SHEET_COUV));
       const couvRaw  = await couvResp.text();
+      if (couvRaw.trim().startsWith('<')) throw new Error('HTML reçu — COUV pas publié');
       const couvLines = couvRaw.split(/\r?\n/);
-      const hIdx = couvLines.findIndex(l=>/equipe|acheteur/i.test(l));
+      console.log('[COUV] lignes totales:', couvLines.length, '| 1ère:', couvLines[0]?.slice(0,60));
+      // Chercher la ligne avec "equipe" ou "acheteur"
+      const hIdx = couvLines.findIndex(l => /equipe|acheteur/i.test(l));
+      console.log('[COUV] header ligne:', hIdx);
       const cleanCouv = couvLines.slice(hIdx>=0?hIdx:0).join('\n');
-      const couvData = await new Promise(res=>Papa.parse(cleanCouv,{header:true,skipEmptyLines:true,complete:r=>res(r.data)}));
+      const couvData = await new Promise(res =>
+        Papa.parse(cleanCouv, {header:true, skipEmptyLines:true, complete:r=>res(r.data)})
+      );
+      console.log('[COUV] rows parsed:', couvData.length, '| 1ère:', JSON.stringify(Object.values(couvData[0]||{}).slice(0,6)));
       D.couv=[]; let curEq='';
       couvData.forEach(r=>{
         const v=Object.values(r);
@@ -647,7 +649,7 @@ async function loadSheets() {
         const tx=parseFloat(String(v[5]||'').replace(',','.'))||0;
         if(eq&&!eq.startsWith('Total'))curEq=eq;
         if(!nom||nom.startsWith('Total')||/^acheteur|^equipe/i.test(nom)||total===0)return;
-        D.couv.push({equipe:curEq, nom, nonUtil:nonU, util:oui, total, txCouv:tx||(total>0?oui/total:0)});
+        D.couv.push({equipe:curEq,nom,nonUtil:nonU,util:oui,total,txCouv:tx||(total>0?oui/total:0)});
       });
       console.log('[COUV]',D.couv.length,D.couv.map(c=>c.nom).join(' | '));
     } catch(e) { D.couv=[]; console.error('[COUV]',e); }
@@ -991,9 +993,10 @@ function namesMatch(a, b) {
     return ta.every(t=>tb.includes(t))||tb.every(t=>ta.includes(t));
   return false;
 }
+function reForNom(nom)     { return D.re.find(r=>namesMatch(r.nom,nom))||null; }
 function findPresWeek(nom) { return D.presWeek.filter(pw=>namesMatch(pw.nom,nom)); }
-function findPresDaily(nom) { return D.presDaily.filter(pd=>namesMatch(pd.nom,nom)); }
-function couvForNom(nom) { return D.couv.find(r=>namesMatch(r.nom,nom))||null; }
+function findPresDaily(nom){ return D.presDaily.filter(pd=>namesMatch(pd.nom,nom)); }
+function couvForNom(nom)   { return D.couv.find(r=>namesMatch(r.nom,nom))||null; }
 
 const couvFor   = nom=>D.couv.find(r=>r.nom===nom)||null;
 const couvEqFor = eq=>D.couv.filter(r=>r.equipe===eq);
