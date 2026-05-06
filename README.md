@@ -1,1 +1,1902 @@
-# imex-console
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IMEX Performance Console — NOZ v6</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+:root{
+  --deep:#1A2565;--royal:#2B3A9B;--med:#4A5BAA;
+  --light:#C8D5E8;--ultra:#EEF2FA;--pale:#F5F7FD;
+  --white:#FFFFFF;--gt:#5A6A8A;--gl:#D0D9EE;
+  --green:#1A7A41;--amber:#B8660A;--red:#B02020;
+  --bgg:#E8F5EE;--bga:#FDF3E3;--bgr:#FAEAEA;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--pale);color:var(--deep);min-height:100vh}
+
+/* ── SCREENS ── */
+.screen{display:none;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:32px}
+.screen.active{display:flex}
+
+/* LOGIN */
+.noz-badge{background:var(--royal);color:#fff;font-size:48px;font-weight:900;padding:12px 36px;border-radius:14px;letter-spacing:.04em;margin-bottom:10px;box-shadow:0 4px 20px rgba(43,58,155,.3)}
+.app-title{font-size:18px;font-weight:700;color:var(--deep);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px}
+.app-sub{font-size:12px;color:var(--gt);margin-bottom:40px;letter-spacing:.04em}
+.login-box{background:var(--white);border-radius:16px;border:1px solid var(--gl);box-shadow:0 4px 24px rgba(26,37,101,.1);padding:36px 40px;width:100%;max-width:400px}
+.login-title{font-size:16px;font-weight:700;color:var(--deep);margin-bottom:24px;text-align:center}
+.fg{margin-bottom:18px}
+.fl2{display:block;font-size:10.5px;font-weight:700;color:var(--gt);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+.fc2{width:100%;border:1.5px solid var(--gl);border-radius:8px;padding:10px 12px;font-size:14px;color:var(--deep);outline:none;transition:border .2s;background:var(--white)}
+.fc2:focus{border-color:var(--royal)}
+.btn-p{width:100%;background:var(--deep);color:#fff;border:none;padding:12px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;transition:background .2s;margin-top:8px}
+.btn-p:hover{background:var(--royal)}
+.btn-p:disabled{opacity:.6;cursor:not-allowed}
+.err-box{background:var(--bgr);color:var(--red);border:1px solid var(--red);border-radius:6px;padding:8px 12px;font-size:12px;margin-top:12px;display:none}
+.login-foot{margin-top:16px;text-align:center;font-size:10.5px;color:var(--gl)}
+
+/* LOADING */
+.loading-screen{text-align:center}
+.spinner{width:48px;height:48px;border:4px solid var(--light);border-top-color:var(--royal);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 20px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:14px;color:var(--gt);margin-bottom:8px}
+.loading-step{font-size:12px;color:var(--light);height:18px;transition:all .3s}
+
+/* ── CONSOLE ── */
+#console{display:none;flex-direction:column;min-height:100vh}
+
+/* Header */
+.hdr{background:var(--deep);height:54px;padding:0 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:300;box-shadow:0 2px 12px rgba(26,37,101,.3)}
+.hdr-l{display:flex;align-items:center;gap:10px}
+.hdr-acc{width:4px;height:28px;background:var(--royal);border-radius:2px}
+.hdr-logo{background:var(--royal);color:#fff;font-size:13px;font-weight:900;padding:4px 11px;border-radius:5px;letter-spacing:.05em}
+.hdr-t{font-size:15px;font-weight:700;color:#fff}
+.hdr-s{font-size:9.5px;color:var(--light);opacity:.7;margin-top:1px}
+.hdr-r{display:flex;align-items:center;gap:8px}
+.hdr-user{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.1);border-radius:16px;padding:4px 12px}
+.hdr-uname{font-size:11.5px;color:var(--light);font-weight:600}
+.hdr-urole{font-size:9px;background:var(--royal);color:#fff;padding:2px 6px;border-radius:8px;font-weight:700;text-transform:uppercase}
+.hdr-btn{background:transparent;border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.7);padding:5px 10px;border-radius:5px;font-size:11px;cursor:pointer;transition:all .2s}
+.hdr-btn:hover{background:rgba(255,255,255,.1);color:#fff}
+.hdr-week{background:var(--royal);color:#fff;font-size:11.5px;font-weight:700;padding:4px 12px;border-radius:12px}
+.sync-info{font-size:10px;color:rgba(255,255,255,.45);display:flex;align-items:center;gap:5px}
+
+/* Filter bar */
+.fbar{background:var(--white);border-bottom:2px solid var(--ultra);padding:8px 20px;display:flex;align-items:center;gap:10px;position:sticky;top:54px;z-index:200;box-shadow:0 2px 8px rgba(0,0,0,.04);flex-wrap:wrap}
+.flabel{font-size:9.5px;font-weight:700;color:var(--gt);text-transform:uppercase;letter-spacing:.07em;white-space:nowrap}
+.fsep{width:1px;height:24px;background:var(--gl);flex-shrink:0}
+
+/* Multi-select */
+.ms{position:relative;user-select:none}
+.ms-btn{display:flex;align-items:center;gap:6px;border:1.5px solid var(--gl);border-radius:6px;padding:5px 10px;background:var(--white);cursor:pointer;min-width:120px;max-width:200px;font-size:12px;color:var(--deep);transition:border .2s;white-space:nowrap}
+.ms-btn:hover,.ms.open .ms-btn{border-color:var(--royal)}
+.ms-lbl{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ms-arr{font-size:9px;color:var(--gt);transition:transform .2s;flex-shrink:0}
+.ms.open .ms-arr{transform:rotate(180deg)}
+.ms-panel{position:absolute;top:calc(100% + 4px);left:0;background:var(--white);border:1.5px solid var(--gl);border-radius:10px;box-shadow:0 4px 20px rgba(26,37,101,.12);z-index:400;min-width:220px;max-height:280px;display:none;flex-direction:column;overflow:hidden}
+.ms.open .ms-panel{display:flex}
+.ms-search{padding:8px 10px;border:none;border-bottom:1px solid var(--ultra);outline:none;font-size:12px;color:var(--deep);width:100%;background:var(--pale)}
+.ms-list{overflow-y:auto;flex:1}
+.ms-opt{display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;font-size:12px;color:var(--deep);transition:background .12s}
+.ms-opt:hover{background:var(--ultra)}
+.ms-opt input[type=checkbox]{accent-color:var(--royal);width:13px;height:13px;cursor:pointer;flex-shrink:0}
+.ms-opt.all-opt{border-bottom:1px solid var(--ultra);font-weight:600}
+.ms-badge{background:var(--royal);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;margin-left:4px}
+
+/* View tabs */
+.vtabs{display:flex;gap:4px;margin-left:auto}
+.vtab{padding:5px 14px;border:1.5px solid var(--gl);border-radius:6px;font-size:12px;font-weight:600;color:var(--gt);background:var(--white);cursor:pointer;transition:all .2s;white-space:nowrap}
+.vtab:hover{border-color:var(--royal);color:var(--royal)}
+.vtab.active{background:var(--deep);border-color:var(--deep);color:#fff}
+
+/* Main */
+.main{padding:20px;flex:1}
+.view{display:none}
+.view.active{display:block;animation:fi .2s ease}
+@keyframes fi{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+
+/* KPI cards */
+.kg{display:grid;gap:12px;margin-bottom:16px}
+.k4{grid-template-columns:repeat(4,1fr)}
+.k5{grid-template-columns:repeat(5,1fr)}
+.k6{grid-template-columns:repeat(6,1fr)}
+.k9{grid-template-columns:repeat(9,1fr)}
+.kc{background:var(--white);border-radius:10px;border:1px solid var(--gl);padding:12px 10px;position:relative;overflow:hidden;box-shadow:0 1px 4px rgba(26,37,101,.05)}
+.kc::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--royal)}
+.kc.d::before{background:var(--deep)}.kc.m::before{background:var(--med)}
+.kc.r::before{background:var(--red)}.kc.a::before{background:var(--amber)}.kc.g::before{background:var(--green)}
+.kl{font-size:8.5px;font-weight:700;color:var(--gt);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
+.kv{font-size:22px;font-weight:800;color:var(--royal);line-height:1}
+.kv.d{color:var(--deep)}.kv.m{color:var(--med)}.kv.r{color:var(--red)}.kv.a{color:var(--amber)}.kv.g{color:var(--green)}
+.ks{font-size:9.5px;color:var(--gt);margin-top:3px}
+.kt{font-size:10px;font-weight:600;margin-top:2px}
+.kt.up{color:var(--green)}.kt.dn{color:var(--red)}.kt.eq{color:var(--gt)}
+
+/* Section */
+.sh{display:flex;align-items:center;gap:8px;margin-bottom:10px;margin-top:2px}
+.shb{width:4px;height:16px;background:var(--royal);border-radius:2px;flex-shrink:0}
+.sht{font-size:13.5px;font-weight:700;color:var(--deep)}
+.shs{font-size:10.5px;color:var(--gt);margin-left:auto}
+
+/* Tables */
+.tw{border-radius:10px;overflow:hidden;border:1px solid var(--gl);box-shadow:0 1px 4px rgba(26,37,101,.05);margin-bottom:16px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead tr{background:var(--deep)}
+thead th{color:rgba(255,255,255,.85);font-weight:600;font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;text-align:center;white-space:nowrap}
+thead th:first-child{text-align:left}
+tbody tr{border-bottom:1px solid var(--ultra);transition:background .12s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:var(--ultra)}
+tbody td{padding:7px 10px;text-align:center;color:#333}
+tbody td:first-child{text-align:left;font-weight:600;color:var(--deep)}
+tfoot tr{background:var(--deep)}
+tfoot td{padding:8px 10px;text-align:center;color:#fff;font-weight:700;font-size:12px}
+tfoot td:first-child{text-align:left}
+.lnk{color:var(--royal);cursor:pointer;text-decoration:underline}
+.lnk:hover{color:var(--deep)}
+
+/* Badges */
+.b{display:inline-block;padding:2px 6px;border-radius:10px;font-size:10.5px;font-weight:700}
+.bg{background:var(--bgg);color:var(--green)}.ba{background:var(--bga);color:var(--amber)}
+.br{background:var(--bgr);color:var(--red)}.bb{background:var(--ultra);color:var(--royal)}.bx{background:#f0f0f0;color:#888}
+
+/* Charts */
+.ch2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+.cc{background:var(--white);border-radius:10px;padding:14px 16px;border:1px solid var(--gl);box-shadow:0 1px 4px rgba(26,37,101,.05);margin-bottom:16px}
+.ct{font-size:12px;font-weight:700;color:var(--deep);margin-bottom:10px}
+.cw{position:relative}
+
+/* Constat */
+.cg{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.card-c{background:var(--white);border-radius:10px;padding:14px 14px 14px 18px;border:1px solid var(--gl);border-left:4px solid;box-shadow:0 1px 4px rgba(26,37,101,.05)}
+.card-c.al{border-left-color:var(--red)}.card-c.wn{border-left-color:var(--amber)}
+.card-c.ok{border-left-color:var(--green)}.card-c.info{border-left-color:var(--royal)}
+.card-c.full{grid-column:span 2}
+.ctag{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
+.ctag.al{color:var(--red)}.ctag.wn{color:var(--amber)}.ctag.ok{color:var(--green)}.ctag.info{color:var(--royal)}
+.ctit{font-size:12.5px;font-weight:700;color:var(--deep);margin-bottom:5px}
+.cbdy{font-size:11px;color:var(--gt);line-height:1.5}
+
+/* Legend */
+.leg{background:var(--ultra);border-radius:8px;padding:8px 12px;font-size:10.5px;color:var(--gt);margin-bottom:16px;border:1px solid var(--gl);line-height:1.6}
+.leg strong{color:var(--deep)}
+
+/* Prospecteur header */
+.ph{background:var(--white);border-radius:10px;border:1px solid var(--gl);padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:16px;box-shadow:0 1px 4px rgba(26,37,101,.05);flex-wrap:wrap}
+.ph-av{width:46px;height:46px;background:var(--royal);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;flex-shrink:0}
+.ph-name{font-size:17px;font-weight:800;color:var(--deep)}
+.ph-meta{font-size:10.5px;color:var(--gt);margin-top:3px}
+.ph-kpis{display:flex;gap:16px;margin-left:auto;flex-wrap:wrap}
+.pk .v{font-size:18px;font-weight:800;color:var(--royal);text-align:center}
+.pk .l{font-size:8.5px;color:var(--gt);text-transform:uppercase;letter-spacing:.06em;text-align:center}
+
+/* Team cards */
+.tg{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:16px}
+.tc{background:var(--white);border-radius:10px;border:1px solid var(--gl);overflow:hidden;box-shadow:0 1px 4px rgba(26,37,101,.05);cursor:pointer;transition:box-shadow .2s}
+.tc:hover{box-shadow:0 4px 16px rgba(26,37,101,.12)}
+.tc-hdr{background:var(--deep);padding:10px 14px;display:flex;align-items:center;justify-content:space-between}
+.tc-name{font-size:12px;font-weight:700;color:#fff}
+.tc-body{padding:12px 14px}
+.tkr{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px}
+.tk{text-align:center}
+.tk .v{font-size:15px;font-weight:800;color:var(--royal)}
+.tk .l{font-size:8.5px;color:var(--gt);text-transform:uppercase}
+
+/* Empty */
+.empty{text-align:center;padding:48px 20px;color:var(--gt)}
+.empty-icon{font-size:40px;margin-bottom:10px}
+
+/* Log modal */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:500;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--white);border-radius:14px;padding:24px;max-width:640px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.modal-title{font-size:16px;font-weight:700;color:var(--deep)}
+.modal-close{background:none;border:none;font-size:20px;color:var(--gt);cursor:pointer}
+.modal-body{overflow-y:auto;flex:1}
+.log-entry{padding:7px 10px;border-bottom:1px solid var(--ultra);font-size:12px;display:flex;gap:12px;align-items:center}
+.log-entry:last-child{border-bottom:none}
+.log-time{color:var(--gt);white-space:nowrap;font-size:11px;min-width:130px}
+.log-user{font-weight:700;color:var(--royal);min-width:120px}
+.log-action{color:var(--deep)}
+
+/* Sync badge */
+.sync-ok{color:#6EE7B7;font-size:10px}
+.sync-err{color:#FCA5A5;font-size:10px}
+
+
+/* ── PRÉSENCE ── */
+.pday{display:inline-flex;flex-direction:column;align-items:center;gap:2px;min-width:52px;padding:6px 4px;border-radius:8px;border:1px solid var(--gl)}
+.pday-d{font-size:8.5px;color:var(--gt);font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.pday-c{font-size:11px;font-weight:800;padding:2px 5px;border-radius:5px}
+.pday-hp{font-size:8px;color:var(--gt);margin-top:1px}
+.pday.P{background:#E8FAF0;border-color:#1A7A41}.pday.P .pday-c{color:#1A7A41;background:#C6EFCE}
+.pday.A{background:#FAEAEA;border-color:#B02020}.pday.A .pday-c{color:#B02020;background:#FFC7CE}
+.pday.CP{background:#EEF4FB;border-color:#2E75B6}.pday.CP .pday-c{color:#2E75B6;background:#BDD7EE}
+.pday.CSS{background:#FFFBEA;border-color:#B8660A}.pday.CSS .pday-c{color:#B8660A;background:#FFE699}
+.pday.AM{background:#FFFBEA;border-color:#B8660A}.pday.AM .pday-c{color:#8B5E00;background:#FFEB9C}
+.pday.MA{background:#F9F0FE;border-color:#7B3DA8}.pday.MA .pday-c{color:#7B3DA8;background:#E2B1F4}
+.pday.demi{background:#F0FFF4;border-color:#27AE60}.pday.demi .pday-c{color:#1A7A41;background:#CCFFCC}
+.pday.vide{background:var(--pale);border-color:var(--gl);opacity:.5}.pday.vide .pday-c{color:var(--gt)}
+.prow{display:flex;gap:8px;flex-wrap:wrap;padding:10px 0}
+/* sub-tabs présence */
+.stabs{display:flex;gap:4px;margin-bottom:14px;border-bottom:2px solid var(--ultra);padding-bottom:8px}
+.stab{padding:4px 14px;border:1.5px solid var(--gl);border-radius:6px 6px 0 0;font-size:11.5px;font-weight:600;color:var(--gt);background:var(--white);cursor:pointer;transition:all .2s}
+.stab:hover{color:var(--royal)}.stab.active{background:var(--deep);border-color:var(--deep);color:#fff}
+/* présence kpi mini */
+.pkm{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:14px}
+.pkmk{background:var(--white);border-radius:8px;border:1px solid var(--gl);padding:8px 6px;text-align:center}
+.pkmk .v{font-size:17px;font-weight:800}.pkmk .l{font-size:8px;color:var(--gt);text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
+.pkmk.g::before{content:'';display:block;height:3px;background:var(--green);border-radius:2px;margin-bottom:5px}
+.pkmk.r::before{content:'';display:block;height:3px;background:var(--red);border-radius:2px;margin-bottom:5px}
+.pkmk.a::before{content:'';display:block;height:3px;background:var(--amber);border-radius:2px;margin-bottom:5px}
+.pkmk.d::before{content:'';display:block;height:3px;background:var(--deep);border-radius:2px;margin-bottom:5px}
+.pkmk.m::before{content:'';display:block;height:3px;background:var(--med);border-radius:2px;margin-bottom:5px}
+
+/* ── DATA STATUS ── */
+.dstatus{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:6px 20px;background:var(--deep);border-bottom:1px solid rgba(255,255,255,.1)}
+.dst{display:flex;align-items:center;gap:4px;font-size:10px;color:rgba(255,255,255,.6);padding:2px 8px;border-radius:10px;background:rgba(255,255,255,.08)}
+.dst.ok{background:rgba(110,231,183,.15);color:#6EE7B7}
+.dst.err{background:rgba(252,165,165,.15);color:#FCA5A5}
+.dst.warn{background:rgba(251,191,36,.15);color:#FBB03B}
+@media(max-width:900px){.k6,.k9{grid-template-columns:repeat(3,1fr)}.ch2{grid-template-columns:1fr}.cg{grid-template-columns:1fr}.card-c.full{grid-column:span 1}}
+</style>
+</head>
+<body>
+
+<!-- ════════ LOGIN ════════ -->
+<div id="login-screen" class="screen active">
+  <div class="noz-badge">NOZ</div>
+  <div class="app-title">IMEX Performance Console</div>
+  <div class="app-sub">IMEX Global Tunis · Centrale d'achat · v6.0</div>
+  <div class="login-box">
+    <div class="login-title">🔐 Connexion</div>
+    <div class="fg">
+      <label class="fl2">Identifiant</label>
+      <select id="login-user" class="fc2">
+        <option value="">— Sélectionnez —</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label class="fl2">Code PIN</label>
+      <input type="password" id="login-pin" class="fc2" placeholder="••••" maxlength="6"
+        onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn-p" id="btn-login" onclick="doLogin()">Connexion</button>
+    <div class="err-box" id="login-err">Identifiant ou code PIN incorrect</div>
+    <div class="login-foot">IMEX Global Tunis · NOZ · Données chargées depuis Google Sheets</div>
+  </div>
+</div>
+
+<!-- ════════ LOADING ════════ -->
+<div id="loading-screen" class="screen">
+  <div class="loading-screen">
+    <div class="spinner"></div>
+    <div class="loading-text">Chargement des données...</div>
+    <div class="loading-step" id="loading-step">Connexion à Google Sheets</div>
+  </div>
+</div>
+
+<!-- ════════ CONSOLE ════════ -->
+<div id="console" style="display:none;flex-direction:column">
+
+  <div class="hdr">
+    <div class="hdr-l">
+      <div class="hdr-acc"></div>
+      <div class="hdr-logo">NOZ</div>
+      <div>
+        <div class="hdr-t">IMEX Performance Console</div>
+        <div class="hdr-s">IMEX Global Tunis · Centrale d'achat NOZ · v8</div>
+      </div>
+    </div>
+    <div class="hdr-r">
+      <div class="sync-info" id="sync-info">
+        <span id="sync-dot">●</span>
+        <span id="sync-time">—</span>
+      </div>
+      <span class="hdr-week" id="hdr-week">—</span>
+      <button class="hdr-btn" onclick="refreshData()" title="Recharger les données depuis Google Sheets">⟳ Actualiser</button>
+      <div class="hdr-user">
+        <span class="hdr-uname" id="hdr-uname">—</span>
+        <span class="hdr-urole" id="hdr-urole">—</span>
+      </div>
+      <button class="hdr-btn" onclick="showLog()" id="btn-log" style="display:none">📋 Log</button>
+      <button class="hdr-btn" onclick="doLogout()">⬅ Déco.</button>
+    </div>
+  </div>
+
+  <div class="dstatus" id="dstatus" style="display:none"></div>
+  <div class="fbar" id="fbar">
+    <span class="flabel">Mois</span>
+    <div class="ms" id="ms-mois">
+      <div class="ms-btn" onclick="toggleMs('ms-mois')">
+        <span class="ms-lbl">Tous</span><span class="ms-arr">▾</span>
+      </div>
+      <div class="ms-panel">
+        <input class="ms-search" placeholder="Rechercher..." oninput="msFilter(this,'ms-mois')">
+        <div class="ms-list"></div>
+      </div>
+    </div>
+    <div class="fsep"></div>
+    <span class="flabel">Semaine</span>
+    <div class="ms" id="ms-sem">
+      <div class="ms-btn" onclick="toggleMs('ms-sem')">
+        <span class="ms-lbl">Toutes</span><span class="ms-arr">▾</span>
+      </div>
+      <div class="ms-panel">
+        <input class="ms-search" placeholder="Rechercher..." oninput="msFilter(this,'ms-sem')">
+        <div class="ms-list"></div>
+      </div>
+    </div>
+    <div class="fsep"></div>
+    <span class="flabel" id="fl-eq">Équipe</span>
+    <div class="ms" id="ms-eq">
+      <div class="ms-btn" onclick="toggleMs('ms-eq')">
+        <span class="ms-lbl">Toutes</span><span class="ms-arr">▾</span>
+      </div>
+      <div class="ms-panel">
+        <input class="ms-search" placeholder="Rechercher..." oninput="msFilter(this,'ms-eq')">
+        <div class="ms-list"></div>
+      </div>
+    </div>
+    <div class="fsep" id="sep-pros"></div>
+    <span class="flabel" id="fl-pros">Prospecteur</span>
+    <div class="ms" id="ms-pros">
+      <div class="ms-btn" onclick="toggleMs('ms-pros')">
+        <span class="ms-lbl">Tous</span><span class="ms-arr">▾</span>
+      </div>
+      <div class="ms-panel">
+        <input class="ms-search" placeholder="Rechercher..." oninput="msFilter(this,'ms-pros')">
+        <div class="ms-list"></div>
+      </div>
+    </div>
+    <div class="vtabs" id="vtabs">
+      <button class="vtab active" data-view="prospecteur" onclick="setView('prospecteur',this)">👤 Prospecteur</button>
+      <button class="vtab" data-view="equipe" onclick="setView('equipe',this)">👥 Équipe</button>
+      <button class="vtab" data-view="global" onclick="setView('global',this)" id="vtab-global">🌐 Global N+1</button>
+      <button class="vtab" data-view="presence" onclick="setView('presence',this)" id="vtab-presence">📋 Présence</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="view active" id="view-prospecteur"><div id="pros-c"></div></div>
+    <div class="view" id="view-equipe"><div id="eq-c"></div></div>
+    <div class="view" id="view-global"><div id="gl-c"></div></div>
+    <div class="view" id="view-presence"><div id="pres-c"></div></div>
+  </div>
+</div>
+
+<!-- Log Modal -->
+<div class="modal-bg" id="log-modal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title">📋 Journal des connexions</div>
+      <button class="modal-close" onclick="document.getElementById('log-modal').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body" id="log-body"></div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════
+// ██  CONFIGURATION — À MODIFIER UNE SEULE FOIS  ██
+// ════════════════════════════════════════════════════════
+
+// 1. Collez l'ID de votre Google Sheet ici
+//    (c'est la partie entre /d/ et /edit dans l'URL)
+const SHEET_ID          = '1mBWGuumnMSXLwfUcghwew7HKZ0wsDkHwg1upQyGQ_F0'; // IMEX_DATA_COGNOS
+const SHEET_ID_PRESENCE = '12xm_p9EZZdav9OQEIebtBlolp1l1rVz6V_vR2Dxd2aA';                   // SUIVI_PRESENCE G.Sheet
+
+// 2. Noms exacts de vos onglets Google Sheets
+const SHEET_COGNOS = 'COGNOS';
+const SHEET_RE     = 'RE';
+const SHEET_COUV   = 'COUV';
+// ETP supprimé — données présence prises depuis SHEET_ID_PRESENCE (SUIVI_PRESENCE G.Sheet)
+const SHEET_PRESENCE       = 'EXPORT_HEBDO';       // KPIs hebdo par prospecteur
+const SHEET_PRESENCE_DAILY = 'EXPORT_DAILY'; // Statut jour par jour
+
+// 3. Utilisateurs et accès
+const USERS = {
+  'ADMIN':   { pin:'1307', nom:null,               role:'admin',       label:'Manager / Admin' },
+  'N1':      { pin:'3612', nom:null,               role:'n1',          label:'Direction N+1' },
+  'EMIRA':   { pin:'1010', nom:'Emira BEN SAID',   role:'prospecteur', equipe:'SED_TUN_IMEX_PROS_PROD_BE' },
+  'ISMAIL':  { pin:'2222', nom:'Ismail MHAMDI',    role:'prospecteur', equipe:'SED_TUN_IMEX_PROS_PROD_BE' },
+  'RAGHDA':  { pin:'3333', nom:'Raghda CHEBBY',    role:'prospecteur', equipe:'SED_TUN_IMEX_PROS_PROD_BE' },
+  'REFKA':   { pin:'4444', nom:'Refka GUIZANI',    role:'prospecteur', equipe:'SED_TUN_IMEX_PROS_PROD_BE' },
+  'RIM':     { pin:'5555', nom:'Rim GHILANE',      role:'prospecteur', equipe:'SED_TUN_IMEX_PROS_PROD_BE' },
+};
+
+// ════════════════════════════════════════════════════════
+
+// ── STATE ──
+let CU = null; // current user
+let D  = { cognos:[], re:[], etp:[], presWeek:[], presDaily:[], couv:[] };
+let curPresView = 'prospecteur'; // sub-tab présence
+let MSS = { mois:[], sem:[], eq:[], pros:[] }; // [] = all
+let curView = 'prospecteur';
+let charts = {};
+let lastSync = null;
+
+// ── Init login dropdown ──
+;(function(){
+  const sel = document.getElementById('login-user');
+  Object.entries(USERS).forEach(([code,u]) => {
+    sel.innerHTML += `<option value="${code}">${u.label||code}</option>`;
+  });
+})();
+
+// ════════════════════════════════════════════════════════
+// GOOGLE SHEETS → CSV
+// ════════════════════════════════════════════════════════
+function sheetUrl(sheetName, sid) {
+  const id = sid || SHEET_ID;
+  // export?format=csv est le seul endpoint avec CORS support depuis Netlify
+  return `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&sheet=${encodeURIComponent(sheetName)}`;
+}
+async function fetchSheetFrom(sid, sheetName, step, skipLines=1) {
+  setStep(step);
+  const url = sheetUrl(sheetName, sid);
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`HTTP ${r.status} — Impossible de charger "${sheetName}"`);
+  let text = await r.text();
+  // Skip instruction row(s) — handle both \n and \r\n
+  if (skipLines > 0) {
+    const lines = text.split(/\r?\n/);
+    text = lines.slice(skipLines).join('\n');
+  }
+  return new Promise((resolve, reject) => {
+    Papa.parse(text, { header:true, skipEmptyLines:true,
+      complete: res => resolve(res.data), error: err => reject(err) });
+  });
+}
+
+async function fetchSheet(sheetName, step) {
+  setStep(step);
+  const url = sheetUrl(sheetName);
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`Impossible de charger l'onglet "${sheetName}". Vérifiez que le Sheet est publié.`);
+  const text = await r.text();
+  return new Promise((resolve, reject) => {
+    Papa.parse(text, {
+      header: true,
+      skipEmptyLines: true,
+      complete: res => resolve(res.data),
+      error: err => reject(err),
+    });
+  });
+}
+
+function setStep(msg) {
+  const el = document.getElementById('loading-step');
+  if (el) el.textContent = msg;
+}
+
+async function loadSheets() {
+  try {
+    // COGNOS
+    const cognosRaw = await fetchSheet(SHEET_COGNOS, '📊 Chargement COGNOS...');
+    // COGNOS — named field access (robuste, indépendant de l'offset)
+    D.cognos = cognosRaw
+      .filter(r => (r['Nom']||r['Nom UCMS']) && r['Equipe'])
+      .map(r => ({
+        mois:   clean(r['Mois']),
+        sem:    clean(r['Semaine']),
+        nom:    clean(r['Nom']||r['Nom UCMS']),
+        equipe: clean(r['Equipe']),
+        macro:  clean(r['Macro Equipe']),
+        mgr:    clean(r['Manager UCMS']),
+        app:    n(r['Nb Appels']),
+        au:     n(r['Nb Appels utiles']),
+        lots:   n(r['Nb lots']),
+        dd:     n(r['Nb DD']),
+        nbOff:  n(r['Nb aff avec off valid']),
+        vvhtO:  n(r['MNTVTE_HT aff avec off valid']),
+        nbCmd:  n(r['Nb aff cmd']),
+        vvhtC:  n(r['MNTVTE_HT cde']),
+      }));
+
+    // RE — auto-detect structure (COGNOS columns vs dedicated RE)
+    setStep('🔁 Chargement Relances...');
+    const reRaw = await fetchSheet(SHEET_RE, '🔁 Chargement Relances...');
+    D.re = [];
+    if (reRaw.length > 0) {
+      const reHdrs = Object.keys(reRaw[0]);
+      const isCognosStruct = reHdrs[0]==='Mois' && reHdrs[1]==='Semaine';
+      const hasRetard   = reHdrs.some(h=>/nbre.retard|^retard$/i.test(h));
+      const hasAcheteur = reHdrs.some(h=>/acheteur/i.test(h));
+
+      if (!isCognosStruct && (hasRetard || hasAcheteur)) {
+        let curEqR = null;
+        reRaw.forEach(r => {
+          const vals   = Object.values(r);
+          const eqVal  = r['Equipe']||r['equipe']||vals[0]||'';
+          const nomVal = r['Acheteur']||r['acheteur']||r['Nom']||vals[1]||'';
+          if (String(eqVal).trim()&&!String(eqVal).trim().startsWith('Total')) curEqR=String(eqVal).trim();
+          if (!String(nomVal).trim()||String(nomVal).trim().startsWith('Total')) return;
+          const retK   = reHdrs.find(h=>/nbre.retard|^retard$/i.test(h))||'';
+          const totK   = reHdrs.find(h=>/portfolio.total/i.test(h))||reHdrs[reHdrs.length-1];
+          const afaireK= reHdrs.find(h=>/total.j|j.j/i.test(h))||totK;
+          const jK     = ['J','J+1','J+2','J+3','J+4','J+5','J+6'].map(k=>reHdrs.find(h=>h.trim()===k)||'');
+          D.re.push({
+            equipe:curEqR||'', nom:String(nomVal).trim(),
+            retard:n(r[retK]),
+            j:n(r[jK[0]]),j1:n(r[jK[1]]),j2:n(r[jK[2]]),
+            j3:n(r[jK[3]]),j4:n(r[jK[4]]),j5:n(r[jK[5]]),j6:n(r[jK[6]]),
+            afaire:n(r[afaireK]), total:n(r[totK]),
+          });
+        });
+      }
+      // isCognos → D.re=[] (no RE data available)
+    }
+
+    // PRÉSENCE HEBDO — robust: try skipLines=1 first, fallback to 0
+    setStep('📋 Chargement Présence...');
+    try {
+      const parsePW = rows => rows.map(r => {
+        const vals = Object.values(r);
+        return {
+          equipe: clean(r['Equipe']||vals[0]),
+          nom:    clean(r['Prospecteur']||r['Nom']||vals[1]),
+          sem:    clean(r['Semaine']||vals[2]),
+          plan:   n(r['NB_Planifie']||r['NB Planifie']||r['NB_PLANIFIE']||vals[3]),
+          pres:   n(r['NB_Present'] ||r['NB Present'] ||r['NB_PRESENT'] ||vals[4]),
+          hp:     n(r['Total_HP']   ||r['Total HP']   ||r['TOTAL_HP']   ||vals[5]),
+          txAbs:  n(r['TX_ABS']     ||r['TX ABS']     ||vals[6]),
+          txRet:  n(r['TX_RETARD']  ||r['TX RETARD']  ||vals[7]),
+        };
+      }).filter(r => r.nom && r.sem && r.nom.length > 1);
+
+      let pwRaw = await fetchSheetFrom(SHEET_ID_PRESENCE, SHEET_PRESENCE, '📋 Présence hebdo...', 1);
+      let parsed = parsePW(pwRaw);
+      if (!parsed.length) {
+        // Retry without skipping (GSheet might not have instruction row)
+        pwRaw = await fetchSheetFrom(SHEET_ID_PRESENCE, SHEET_PRESENCE, '📋 Présence hebdo...', 0);
+        parsed = parsePW(pwRaw);
+      }
+      D.presWeek = parsed;
+    } catch(e) { D.presWeek = []; }
+
+    // PRÉSENCE DAILY — même logique robuste
+    setStep('📅 Chargement Présence journalière...');
+    try {
+      const parsePD = rows => rows.map(r => {
+        const vals = Object.values(r);
+        return {
+          equipe: clean(r['Equipe']||vals[0]),
+          nom:    clean(r['Prospecteur']||r['Nom']||vals[1]),
+          sem:    clean(r['Semaine']||vals[2]),
+          date:   clean(r['Date']||vals[3]),
+          jour:   clean(r['Jour']||vals[4]),
+          code:   clean(r['Code']||vals[5]),
+          retH:   n(r['Retard_h']||r['Retard h']||vals[6]),
+          autoH:  n(r['Auto_h']  ||r['Auto h']  ||vals[7]),
+          panH:   n(r['Panne_h'] ||r['Panne h'] ||vals[8]),
+          hp:     n(r['HP_h']    ||r['HP h']    ||vals[9]),
+        };
+      }).filter(r => r.nom && r.date && r.nom.length > 1);
+
+      let pdRaw = await fetchSheetFrom(SHEET_ID_PRESENCE, SHEET_PRESENCE_DAILY, '📅 Présence journalière...', 1);
+      let parsedD = parsePD(pdRaw);
+      if (!parsedD.length) {
+        pdRaw = await fetchSheetFrom(SHEET_ID_PRESENCE, SHEET_PRESENCE_DAILY, '📅 Présence journalière...', 0);
+        parsedD = parsePD(pdRaw);
+      }
+      D.presDaily = parsedD;
+    } catch(e) { D.presDaily = []; }
+
+
+    // COUV — données brutes Copie_de_COUV_3_MOIS / onglet DATA TUNIS
+    // Chaque ligne = 1 fournisseur · col M(12)=prospecteur · N(13)=equipe · V(21)=OUI/0
+    // txCouv = count(OUI) / total lignes par prospecteur
+    try {
+      const couvRaw = await fetchSheet(SHEET_COUV, '📊 Couverture...');
+      D.couv = [];
+      if (couvRaw.length > 0) {
+        const couvMap = {};
+        couvRaw.forEach(r => {
+          const vals = Object.values(r);
+          if (vals.length < 22) return;
+          const nom = String(vals[12]||'').trim(); // col M
+          const eq  = String(vals[13]||'').trim(); // col N
+          const v   = String(vals[21]||'').trim().toUpperCase(); // col V
+          if (!nom || nom.length < 2) return;
+          if (!couvMap[nom]) couvMap[nom] = {equipe:eq, nom, total:0, oui:0};
+          couvMap[nom].total++;
+          if (v==='OUI' || v==='1' || v==='YES') couvMap[nom].oui++;
+        });
+        D.couv = Object.values(couvMap)
+          .filter(r => r.total > 0)
+          .map(r => ({equipe:r.equipe, nom:r.nom, txCouv: r.oui/r.total}));
+      }
+    } catch(e) { D.couv = []; }
+
+    lastSync = new Date();
+    setStep('✅ Données chargées !');
+    return true;
+  } catch(err) {
+    setStep('❌ ' + err.message);
+    await sleep(3000);
+    return false;
+  }
+}
+
+
+function updateDataStatus() {
+  const el = document.getElementById('dstatus');
+  if(!el) return;
+  el.style.display = 'flex';
+  const items = [
+    {label:'COGNOS', n:D.cognos.length, unit:'lignes', ok: D.cognos.length>0},
+    {label:'RE', n:D.re.length, unit:'entrées', ok: D.re.length>0, warn: D.re.length===0, warnMsg:'Onglet RE : données manquantes'},
+    {label:'COUV', n:D.couv.length, unit:'pros', ok: D.couv.length>0, warn: D.couv.length===0, warnMsg:'Onglet COUV : coller DATA TUNIS'},
+    {label:'Présence', n:D.presWeek.length, unit:'lignes', ok: D.presWeek.length>0, warn: D.presWeek.length===0, warnMsg:'EXPORT_HEBDO vide'},
+  ];
+  el.innerHTML = '<span style="font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.08em;margin-right:4px">Sources :</span>' +
+    items.map(it => {
+      const cls = it.ok ? 'ok' : it.warn ? 'warn' : 'err';
+      const txt = it.ok ? `✓ ${it.label} (${it.n} ${it.unit})` : `⚠ ${it.label} — ${it.warnMsg||'vide'}`;
+      return `<span class="dst ${cls}">${txt}</span>`;
+    }).join('');
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ════════════════════════════════════════════════════════
+// LOGIN / LOGOUT
+// ════════════════════════════════════════════════════════
+async function doLogin() {
+  const code = document.getElementById('login-user').value;
+  const pin  = document.getElementById('login-pin').value;
+  const err  = document.getElementById('login-err');
+  const btn  = document.getElementById('btn-login');
+  err.style.display = 'none';
+
+  if (!code) { err.textContent='Sélectionnez un identifiant'; err.style.display='block'; return; }
+  const user = USERS[code];
+  if (!user || user.pin !== pin) { err.style.display='block'; return; }
+
+  CU = { code, ...user };
+  logAccess(code, user.label||code, 'Connexion');
+
+  // Show loading
+  document.getElementById('login-screen').classList.remove('active');
+  document.getElementById('loading-screen').classList.add('active');
+  btn.disabled = true;
+
+  const ok = await loadSheets();
+
+  document.getElementById('loading-screen').classList.remove('active');
+
+  if (!ok) {
+    document.getElementById('login-screen').classList.add('active');
+    btn.disabled = false;
+    return;
+  }
+
+  initConsole();
+}
+
+function doLogout() {
+  if(CU) logAccess(CU.code, CU.label||CU.code, 'Déconnexion');
+  CU = null; D={cognos:[],re:[],etp:[],presWeek:[],presDaily:[],couv:[]};
+  destroyCharts();
+  document.getElementById('console').style.display = 'none';
+  document.getElementById('login-screen').classList.add('active');
+  document.getElementById('login-user').value = '';
+  document.getElementById('login-pin').value = '';
+  document.getElementById('btn-login').disabled = false;
+}
+
+async function refreshData() {
+  const btn = document.querySelector('.hdr-btn[onclick="refreshData()"]');
+  btn.textContent = '⟳ ...';
+  btn.disabled = true;
+  const ok = await loadSheets();
+  if(ok) {
+    updateSyncBadge();
+    // Rebuild filters with fresh data
+    const moisList = uniq(D.cognos.map(r=>r.mois)).sort();
+    const semList  = uniq(D.cognos.map(r=>r.sem)).sort();
+    const eqList   = uniq(D.cognos.map(r=>r.equipe)).sort();
+    const prosList = uniq(D.cognos.map(r=>r.nom)).sort();
+    buildMs('ms-mois', moisList.map(m=>({v:m,l:fmtMois(m)})), 'mois', true);
+    buildMs('ms-sem',  semList.map(s=>({v:s,l:fmtSem(s)})),   'sem',  false);
+    buildMs('ms-eq',   eqList.map(e=>({v:e,l:e})),            'eq',   true);
+    buildMs('ms-pros', prosList.map(p=>({v:p,l:p})),          'pros', true);
+    const lastSem = semList[semList.length-1];
+    if(lastSem) selectOnly('ms-sem','sem',lastSem);
+    updateWeekBadge();
+    updateDataStatus();
+    renderAll();
+  }
+  btn.textContent = '⟳ Actualiser';
+  btn.disabled = false;
+}
+
+// ════════════════════════════════════════════════════════
+// ACCESS LOG (localStorage)
+// ════════════════════════════════════════════════════════
+function logAccess(code, name, action) {
+  const logs = JSON.parse(localStorage.getItem('imex_log')||'[]');
+  logs.unshift({ ts:new Date().toISOString(), code, name, action });
+  if(logs.length>300) logs.length=300;
+  localStorage.setItem('imex_log', JSON.stringify(logs));
+}
+
+function showLog() {
+  const logs = JSON.parse(localStorage.getItem('imex_log')||'[]');
+  const body = document.getElementById('log-body');
+  body.innerHTML = logs.length===0
+    ? '<div class="empty"><div class="empty-icon">📭</div>Aucune connexion enregistrée</div>'
+    : logs.map(l=>`
+        <div class="log-entry">
+          <span class="log-time">${new Date(l.ts).toLocaleString('fr-FR')}</span>
+          <span class="log-user">${l.name}</span>
+          <span class="log-action">${l.action}</span>
+        </div>`).join('');
+  document.getElementById('log-modal').classList.add('open');
+}
+
+function updateSyncBadge() {
+  if(!lastSync) return;
+  const el = document.getElementById('sync-time');
+  const dot = document.getElementById('sync-dot');
+  el.textContent = 'Synchro ' + lastSync.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  dot.className = 'sync-ok';
+}
+
+// ════════════════════════════════════════════════════════
+// INIT CONSOLE
+// ════════════════════════════════════════════════════════
+function initConsole() {
+  const role = CU.role;
+  const isAdmin = role==='admin'||role==='n1';
+
+  document.getElementById('hdr-uname').textContent = CU.label||CU.code;
+  document.getElementById('hdr-urole').textContent = roleLabel(role);
+  if(isAdmin) document.getElementById('btn-log').style.display='';
+  document.getElementById('vtab-global').style.display = isAdmin?'':'none';
+  // Présence visible to all, but prospecteur locked to own data
+  document.getElementById('vtab-presence').style.display = '';
+  updateSyncBadge();
+
+  const moisList = uniq(D.cognos.map(r=>r.mois)).sort();
+  const semList  = uniq(D.cognos.map(r=>r.sem)).sort();
+  const eqList   = uniq(D.cognos.map(r=>r.equipe)).sort();
+  const prosList = uniq(D.cognos.map(r=>r.nom)).sort();
+
+  buildMs('ms-mois', moisList.map(m=>({v:m,l:fmtMois(m)})), 'mois', true);
+  buildMs('ms-sem',  semList.map(s=>({v:s,l:fmtSem(s)})),   'sem',  false);
+  buildMs('ms-eq',   eqList.map(e=>({v:e,l:e})),            'eq',   true);
+  buildMs('ms-pros', prosList.map(p=>({v:p,l:p})),          'pros', true);
+
+  // Default: last week selected
+  const lastSem = semList[semList.length-1];
+  if(lastSem) selectOnly('ms-sem','sem',lastSem);
+
+  // Prospecteur: lock own filters
+  if(role==='prospecteur') {
+    if(CU.equipe) { selectOnly('ms-eq','eq',CU.equipe); lockMs('ms-eq'); }
+    selectOnly('ms-pros','pros',CU.nom); lockMs('ms-pros');
+    ['sep-pros','fl-pros','ms-pros'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el)el.style.display='none';
+    });
+    curView='prospecteur';
+  }
+
+  document.getElementById('console').style.display = 'flex';
+  updateWeekBadge();
+  updateDataStatus();
+  renderAll();
+}
+
+// ════════════════════════════════════════════════════════
+// MULTI-SELECT
+// ════════════════════════════════════════════════════════
+function buildMs(id, opts, key, allDefault) {
+  const el = document.getElementById(id);
+  const list = el.querySelector('.ms-list');
+  list.innerHTML = `
+    <div class="ms-opt all-opt">
+      <input type="checkbox" id="${id}-all" ${allDefault?'checked':''}>
+      <label for="${id}-all" style="cursor:pointer;flex:1">Tout sélectionner</label>
+    </div>` +
+    opts.map(o=>`
+      <div class="ms-opt" data-val="${escAttr(o.v)}">
+        <input type="checkbox" value="${escAttr(o.v)}" ${allDefault?'checked':''}
+          id="${id}-opt-${escAttr(o.v)}" data-key="${key}">
+        <label for="${id}-opt-${escAttr(o.v)}" style="cursor:pointer;flex:1">${o.l}</label>
+      </div>`).join('');
+
+  el.querySelector('.all-opt input').addEventListener('change', e => {
+    el.querySelectorAll('[data-val] input').forEach(cb=>cb.checked=e.target.checked);
+    syncMs(id,key);
+  });
+  el.querySelectorAll('[data-val] input').forEach(cb => {
+    cb.addEventListener('change', () => { syncAllCheckbox(id); syncMs(id,key); });
+  });
+  syncMs(id,key);
+}
+
+function syncAllCheckbox(id) {
+  const el=document.getElementById(id);
+  const cbs=[...el.querySelectorAll('[data-val] input')];
+  const allCb=el.querySelector('.all-opt input');
+  const n=cbs.filter(c=>c.checked).length;
+  allCb.checked=n===cbs.length;
+  allCb.indeterminate=n>0&&n<cbs.length;
+}
+
+function syncMs(id,key) {
+  const el=document.getElementById(id);
+  const cbs=[...el.querySelectorAll('[data-val] input')];
+  const checked=cbs.filter(c=>c.checked).map(c=>c.value);
+  MSS[key]=checked.length===cbs.length?[]:checked;
+  const lbl=el.querySelector('.ms-lbl');
+  if(MSS[key].length===0)lbl.textContent=placeholderFor(key);
+  else if(MSS[key].length===1)lbl.textContent=MSS[key][0];
+  else lbl.textContent=`${MSS[key].length} sél.`;
+  updateWeekBadge();
+  renderAll();
+}
+
+function placeholderFor(k){return{mois:'Tous',sem:'Toutes',eq:'Toutes',pros:'Tous'}[k]||'—';}
+
+function selectOnly(id,key,val) {
+  const el=document.getElementById(id);
+  el.querySelectorAll('[data-val] input').forEach(cb=>{cb.checked=cb.value===val;});
+  syncAllCheckbox(id);
+  MSS[key]=[val];
+  el.querySelector('.ms-lbl').textContent=val;
+}
+
+function lockMs(id) {
+  const btn=document.querySelector(`#${id} .ms-btn`);
+  if(btn){btn.style.pointerEvents='none';btn.style.opacity='.55';}
+}
+
+function toggleMs(id) {
+  const el=document.getElementById(id);
+  const open=el.classList.contains('open');
+  document.querySelectorAll('.ms.open').forEach(m=>m.classList.remove('open'));
+  if(!open)el.classList.add('open');
+}
+
+function msFilter(inp,id) {
+  const q=inp.value.toLowerCase();
+  document.querySelectorAll(`#${id} [data-val]`).forEach(row=>{
+    row.style.display=row.dataset.val.toLowerCase().includes(q)?'':'none';
+  });
+}
+
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.ms'))document.querySelectorAll('.ms.open').forEach(m=>m.classList.remove('open'));
+});
+
+// ════════════════════════════════════════════════════════
+// FILTER & DATA HELPERS
+// ════════════════════════════════════════════════════════
+function fc(ov={}) {
+  const fm=ov.mois!==undefined?ov.mois:MSS.mois;
+  const fs=ov.sem!==undefined?ov.sem:MSS.sem;
+  const fe=ov.eq!==undefined?ov.eq:MSS.eq;
+  const fp=ov.pros!==undefined?ov.pros:MSS.pros;
+  return D.cognos.filter(r=>
+    (!fm.length||fm.includes(r.mois))&&
+    (!fs.length||fs.includes(r.sem))&&
+    (!fe.length||fe.includes(r.equipe))&&
+    (!fp.length||fp.includes(r.nom))
+  );
+}
+
+function agg(rows){
+  return rows.reduce((a,r)=>({
+    app:a.app+r.app,au:a.au+r.au,lots:a.lots+r.lots,dd:a.dd+r.dd,
+    nbOff:a.nbOff+r.nbOff,vvhtO:a.vvhtO+r.vvhtO,nbCmd:a.nbCmd+r.nbCmd,vvhtC:a.vvhtC+r.vvhtC,
+  }),{app:0,au:0,lots:0,dd:0,nbOff:0,vvhtO:0,nbCmd:0,vvhtC:0});
+}
+
+function kpis(a){
+  return {...a,
+    pAU:  a.app>0?a.au/a.app*100:0,
+    pLot: a.app>0?a.lots/a.app*100:0,
+    pDD:  a.lots>0?a.dd/a.lots*100:0,
+    pConv:a.vvhtO>0?a.vvhtC/a.vvhtO*100:0,
+  };
+}
+
+const getWeeks  = ()=>uniq(D.cognos.map(r=>r.sem)).sort();
+const getTeams  = ()=>uniq(D.cognos.map(r=>r.equipe)).sort();
+const getCurSems= ()=>MSS.sem.length>0?MSS.sem:getWeeks();
+const getLastSem= ()=>{const s=getCurSems();return s[s.length-1]||'';}
+const getPrevSem= ()=>{const all=getWeeks(),cur=getLastSem(),i=all.indexOf(cur);return i>0?all[i-1]:null;}
+// Auto-détecte le décalage des données (cols A-N vides dans certains exports)
+function sheetOffset(rows) {
+  for (const r of rows.slice(0, 10)) {
+    const vals = Object.values(r);
+    for (let i = 0; i < vals.length; i++) {
+      if (vals[i] !== null && vals[i] !== undefined && String(vals[i]).trim() !== '') return i;
+    }
+  }
+  return 0;
+}
+const reFor     = nom=>D.re.find(r=>namesMatch(r.nom,nom))||null;
+// ── Name matching (order-independent)
+function normName(s) {
+  return String(s||'').toUpperCase().replace(/[^A-ZÀ-ɏ ]/g,'').trim().split(/\s+/).sort().join(' ');
+}
+function namesMatch(a, b) { return a&&b&&normName(a)===normName(b); }
+function findPresWeek(nom) { return D.presWeek.filter(pw=>namesMatch(pw.nom,nom)); }
+function findPresDaily(nom) { return D.presDaily.filter(pd=>namesMatch(pd.nom,nom)); }
+function couvForNom(nom) { return D.couv.find(r=>namesMatch(r.nom,nom))||null; }
+
+const couvFor   = nom=>D.couv.find(r=>r.nom===nom)||null;
+const couvEqFor = eq=>D.couv.filter(r=>r.equipe===eq);
+const fmtCouv   = v=>(v*100).toFixed(1)+'%';
+const etpFor    = nom=>D.etp.find(r=>r.nom===nom)||null;
+const ragKv     = (v,ok,warn)=>v>=ok?'g':v>=warn?'a':'r';
+const ragCls    = (v,ok,warn)=>({g:'bg',a:'ba',r:'br'})[ragKv(v,ok,warn)];
+
+function trd(cur,prev){
+  if(prev===null||prev===undefined)return{i:'—',c:'eq'};
+  const d=cur-prev;
+  if(Math.abs(d)<0.01)return{i:'→ =',c:'eq'};
+  return d>0?{i:'▲ +'+d.toFixed(1),c:'up'}:{i:'▼ '+d.toFixed(1),c:'dn'};
+}
+
+// ════════════════════════════════════════════════════════
+// VIEW ROUTING
+// ════════════════════════════════════════════════════════
+function setView(v,btn){
+  curView=v;
+  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.vtab').forEach(el=>el.classList.remove('active'));
+  document.getElementById('view-'+v).classList.add('active');
+  btn.classList.add('active');
+  renderAll();
+}
+
+function renderAll(){
+  destroyCharts();
+  if(curView==='prospecteur')renderPros();
+  else if(curView==='equipe')renderEquipe();
+  else if(curView==='presence')renderPresence();
+  else renderGlobal();
+}
+
+function updateWeekBadge(){
+  const s=getCurSems();
+  document.getElementById('hdr-week').textContent=s.length===1?fmtSem(s[0]):s.length+' sem.';
+}
+
+// ════════════════════════════════════════════════════════
+// RENDER: PROSPECTEUR
+// ════════════════════════════════════════════════════════
+function renderPros(){
+  const c=document.getElementById('pros-c');
+  const rows=fc();
+  const pros=uniq(rows.map(r=>r.nom)).sort();
+  const role=CU.role;
+
+  if(!pros.length){c.innerHTML=mkEmpty('Aucun prospecteur pour la sélection');return;}
+
+  const showSingle=pros.length===1||role==='prospecteur';
+
+  if(!showSingle){
+    let h=`<div class="sh"><div class="shb"></div><div class="sht">Sélectionnez un prospecteur</div><div class="shs">${pros.length} prospecteurs</div></div>`;
+    h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px">';
+    pros.forEach(p=>{
+      const k=kpis(agg(fc({pros:[p]})));
+      const re=reFor(p);
+      h+=`<div class="cc" style="cursor:pointer" onclick="selPros('${p}')">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div style="width:38px;height:38px;background:var(--royal);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px">${initials(p)}</div>
+          <div style="font-size:13px;font-weight:700;color:var(--deep)">${p}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;text-align:center">
+          <div><div style="font-size:15px;font-weight:800;color:var(--deep)">${k.app}</div><div style="font-size:8.5px;color:var(--gt);text-transform:uppercase">Appels</div></div>
+          <div><div style="font-size:15px;font-weight:800;color:${k.pAU>=30?'var(--green)':k.pAU>=20?'var(--amber)':'var(--red)'}">${pct(k.pAU)}</div><div style="font-size:8.5px;color:var(--gt);text-transform:uppercase">% A.U</div></div>
+          <div><div style="font-size:15px;font-weight:800;color:var(--royal)">${k.lots}</div><div style="font-size:8.5px;color:var(--gt);text-transform:uppercase">Lots</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;text-align:center;margin-top:6px">
+          <div><div style="font-size:14px;font-weight:800;color:${k.pConv>=25?'var(--green)':k.pConv>=10?'var(--amber)':'var(--red)'}">${pct(k.pConv)}</div><div style="font-size:8.5px;color:var(--gt);text-transform:uppercase">% Conv</div></div>
+          <div><div style="font-size:14px;font-weight:800;color:${k.vvhtC>0?'var(--green)':'var(--gt)'}">${eur(k.vvhtC)}</div><div style="font-size:8.5px;color:var(--gt);text-transform:uppercase">VVHT Cmd</div></div>
+          <div>${(()=>{const cv=couvFor(p);return cv?`<div style="font-size:14px;font-weight:800;color:${cv.txCouv>=0.85?'var(--green)':cv.txCouv>=0.70?'var(--amber)':'var(--red)'}">${fmtCouv(cv.txCouv)}</div><div style="font-size:8.5px;color:var(--gt);text-transform:uppercase">TX Couv.</div>`:'<div style="font-size:14px;font-weight:800;color:var(--gt)">—</div><div style="font-size:8.5px;color:var(--gt);text-transform:uppercase">TX Couv.</div>';})()}</div>
+        </div>
+        ${re&&re.total>0?`<div style="margin-top:8px;font-size:10px;color:${re.retard>50?'var(--red)':re.retard>0?'var(--amber)':'var(--green)'}">RE retard: <strong>${re.retard}</strong> · À faire: <strong>${re.afaire}</strong></div>`:''}
+      </div>`;
+    });
+    h+='</div>';
+    c.innerHTML=h; return;
+  }
+
+  const nom=pros[0];
+  const prevSem=getPrevSem();
+  const k=kpis(agg(fc({pros:[nom]})));
+  const kP=prevSem?kpis(agg(fc({pros:[nom],sem:[prevSem]}))):null;
+  const re=reFor(nom); const et=etpFor(nom);
+  const wks=getWeeks();
+  const hist=wks.map(w=>({w,k:kpis(agg(fc({pros:[nom],sem:[w]})))}));
+
+  let h=`
+  <div class="ph">
+    <div class="ph-av">${initials(nom)}</div>
+    <div>
+      <div class="ph-name">${nom}</div>
+      <div class="ph-meta">${MSS.eq.length===1?MSS.eq[0]:'—'}${et?' · ETP '+et.etp.toFixed(1):''}${D.cognos.find(r=>r.nom===nom)?` · Mgr: ${D.cognos.find(r=>r.nom===nom).mgr}`:''}</div>
+    </div>
+    <div class="ph-kpis">
+      <div class="pk"><div class="v" style="color:${k.pAU>=30?'var(--green)':k.pAU>=20?'var(--amber)':'var(--red)'}">${pct(k.pAU)}</div><div class="l">% A.U</div></div>
+      <div class="pk"><div class="v">${k.lots}</div><div class="l">Lots</div></div>
+      <div class="pk"><div class="v">${k.dd}</div><div class="l">DD</div></div>
+      <div class="pk"><div class="v" style="color:${k.pConv>=25?'var(--green)':k.pConv>=10?'var(--amber)':'var(--red)'}">${pct(k.pConv)}</div><div class="l">% Conv</div></div>
+      ${re?`<div class="pk"><div class="v" style="color:${re.retard>50?'var(--red)':re.retard>0?'var(--amber)':'var(--green)'}">${re.retard}</div><div class="l">RE Retard</div></div>`:''}
+      ${(()=>{const cv=couvForNom(nom);return cv?`<div class="pk"><div class="v" style="color:${cv.txCouv>=0.85?'var(--green)':cv.txCouv>=0.70?'var(--amber)':'var(--red)'}">${fmtCouv(cv.txCouv)}</div><div class="l">TX Couv.</div></div>`:'';})()}
+    </div>
+  </div>
+
+  <div class="kg k9">
+    ${kcard('Nb Appels',    k.app,          '',                    'd',                kP?trd(k.app,kP.app):null)}
+    ${kcard('% A.U',        pct(k.pAU),     '≥30% cible',          ragKv(k.pAU,30,20), kP?trd(k.pAU,kP.pAU):null)}
+    ${kcard('Lots',         k.lots,         pct(k.pLot)+' /app',   '',                 kP?trd(k.lots,kP.lots):null)}
+    ${kcard('% Lot/App',    pct(k.pLot),    k.lots+' lots',        ragKv(k.pLot,2,1),  kP?trd(k.pLot,kP.pLot):null)}
+    ${kcard('DD',           k.dd,           pct(k.pDD)+' /lot',    ragKv(k.pDD,60,30), kP?trd(k.dd,kP.dd):null)}
+    ${kcard('% DD/Lot',     pct(k.pDD),     k.dd+' DD',            ragKv(k.pDD,60,30), kP?trd(k.pDD,kP.pDD):null)}
+    ${kcard('VVHT Offre',   eur(k.vvhtO),   k.nbOff+' offre(s)',   'm',                kP?trd(k.vvhtO,kP.vvhtO):null)}
+    ${kcard('VVHT Cmd',     eur(k.vvhtC),   k.nbCmd+' cmd',        k.vvhtC>0?'g':'r',  kP?trd(k.vvhtC,kP.vvhtC):null)}
+    ${kcard('% Conv',       pct(k.pConv),   eur(k.vvhtC),          ragKv(k.pConv,25,10),kP?trd(k.pConv,kP.pConv):null)}
+  </div>
+  ${(()=>{const cv=couvForNom(nom);if(!cv)return '';return `<div class="kg" style="grid-template-columns:repeat(2,1fr);margin-bottom:12px"><div class="kc ${cv.txCouv>=0.85?'g':cv.txCouv>=0.70?'a':'r'}"><div class="kl">TX Couverture Utile 3 Mois</div><div class="kv ${cv.txCouv>=0.85?'g':cv.txCouv>=0.70?'a':'r'}">${fmtCouv(cv.txCouv)}</div><div class="ks">Fournisseurs joignables · cible ≥85%</div></div><div class="kc r"><div class="kl">Non Joignables</div><div class="kv r">${fmtCouv(1-cv.txCouv)}</div><div class="ks">Relance prioritaire</div></div></div>`;})()}`
+
+  if(re && re.total>0){
+    const rc=re.retard===0?'ok':re.retard<50?'wn':'al';
+    h+=`<div class="sh"><div class="shb"></div><div class="sht">Relances en retard</div></div>
+    <div class="card-c ${rc}" style="margin-bottom:16px">
+      <div class="ctag ${rc}">${re.retard===0?'✅ Aucun retard':re.retard<50?'🟡 Retard modéré':'🔴 Retard critique'}</div>
+      <div class="ctit">${re.retard} en retard · ${re.afaire} à faire J→J+6 · Portfolio : ${re.total}</div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:10px;text-align:center;font-size:11px">
+        ${['J','J+1','J+2','J+3','J+4','J+5','J+6'].map((d,i)=>`<div><div style="font-size:16px;font-weight:800;color:var(--royal)">${[re.j,re.j1,re.j2,re.j3,re.j4,re.j5,re.j6][i]}</div><div style="color:var(--gt)">${d}</div></div>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  h+=`<div class="ch2">
+    <div class="cc"><div class="ct">Appels & % A.U — Évolution</div><div class="cw" style="height:190px"><canvas id="c-au"></canvas></div></div>
+    <div class="cc"><div class="ct">Lots & DD — Évolution</div><div class="cw" style="height:190px"><canvas id="c-lot"></canvas></div></div>
+  </div>
+  <div class="ch2">
+    <div class="cc"><div class="ct">VVHT Offre vs Cmd (K€) — Évolution</div><div class="cw" style="height:170px"><canvas id="c-vvht"></canvas></div></div>
+    <div class="cc"><div class="ct">% Conversion (Cmd/Offre) — Évolution</div><div class="cw" style="height:170px"><canvas id="c-conv"></canvas></div></div>
+  </div>`;
+
+
+  // ── BLOC PRÉSENCE PAR JOUR ──────────────────────────
+  const myWeeks = uniq(findPresWeek(nom).map(pw=>pw.sem)).sort();
+  if(myWeeks.length){
+    h+=`<div class="sh" style="margin-top:4px"><div class="shb" style="background:var(--green)"></div><div class="sht">Présence & Productivité</div><div class="shs">${myWeeks.length} semaine(s)</div></div>`;
+    // KPI cards (dernière semaine)
+    const lastPW=findPresWeek(nom).sort((a,b)=>b.sem.localeCompare(a.sem))[0];
+    if(lastPW){
+      const etpEff=lastPW.plan>0?lastPW.hp/(lastPW.plan*8):0;
+      h+=`<div class="pkm">
+        <div class="pkmk d"><div class="v">${lastPW.plan.toFixed(1)}</div><div class="l">NB Planifié</div></div>
+        <div class="pkmk ${lastPW.pres/lastPW.plan>=0.9?'g':lastPW.pres/lastPW.plan>=0.75?'a':'r'}"><div class="v">${lastPW.pres.toFixed(1)}</div><div class="l">NB Présent</div></div>
+        <div class="pkmk m"><div class="v">${lastPW.hp.toFixed(0)}h</div><div class="l">Total HP</div></div>
+        <div class="pkmk ${etpEff>=0.9?'g':etpEff>=0.75?'a':'r'}"><div class="v">${lastPW.hp>0?(lastPW.hp/40).toFixed(2):'—'}</div><div class="l">ETP</div></div>
+        <div class="pkmk ${lastPW.txAbs<0.05?'g':lastPW.txAbs<0.08?'a':'r'}"><div class="v">${(lastPW.txAbs*100).toFixed(1)}%</div><div class="l">TX ABS</div></div>
+        <div class="pkmk ${lastPW.txRet<0.02?'g':lastPW.txRet<0.05?'a':'r'}"><div class="v">${(lastPW.txRet*100).toFixed(1)}%</div><div class="l">TX Retard</div></div>
+      </div>`;
+    }
+    // Calendrier par semaine
+    myWeeks.forEach(sem=>{
+      const days=findPresDaily(nom).filter(pd=>pd.sem===sem).sort((a,b)=>a.date.localeCompare(b.date));
+      if(!days.length)return;
+      const semPW=D.presWeek.find(pw=>pw.nom===nom&&pw.sem===sem);
+      h+=`<div style="margin-bottom:10px">
+        <div style="font-size:10.5px;font-weight:700;color:var(--deep);margin-bottom:6px">
+          ${fmtSem(sem)} ${semPW?'· HP: <strong>'+semPW.hp.toFixed(0)+'h</strong> · ETP: <strong>'+(semPW.hp/40).toFixed(2)+'</strong>':''}
+        </div>
+        <div class="prow">`;
+      days.forEach(d=>{
+        const code=d.code||'—';
+        const isBlank=code==='—'||code===''||code==='0';
+        const cls=isBlank?'vide':code==='P'?'P':code==='A'?'A':code==='CP'?'CP':code==='CSS'?'CSS':code==='AM'?'AM':code==='MA'?'MA':(code.includes('1/2'))?'demi':'vide';
+        h+=`<div class="pday ${cls}" title="${isBlank?'Non saisi':code}">
+          <span class="pday-d">${d.jour} ${d.date.slice(0,5)}</span>
+          <span class="pday-c">${isBlank?'?':code}</span>
+          <span class="pday-hp">${isBlank?'':d.hp>0?d.hp.toFixed(1)+'h':'0h'}${d.retH>0?' <span style="color:var(--red)">-'+d.retH.toFixed(1)+'h</span>':''}</span>
+        </div>`;
+      });
+      h+=`</div></div>`;
+    });
+  }
+  // ── FIN BLOC PRÉSENCE ───────────────────────────────
+  h+=`<div class="sh"><div class="shb"></div><div class="sht">Constat automatique</div></div>`;
+  nom_ctx=nom;
+  h+=`<div class="cg">${mkConstatPros(k,kP,re)}</div>`;
+  nom_ctx=null;
+  h+=mkLeg('% A.U=App.Utiles/Appels · % Lot/App=Lots/Appels · % DD/Lot=DD/Lots · % Conv=VVHT Cmd/VVHT Offre','Seuils A.U : 🟢≥30% 🟡20–30% 🔴&lt;20% · Conv : 🟢≥25% 🟡10–25% 🔴&lt;10%');
+
+  c.innerHTML=h;
+  const lbl=hist.map(h=>fmtSem(h.w));
+
+  mkCh('c-au',{labels:lbl,datasets:[
+    {type:'bar',label:'Nb Appels',data:hist.map(h=>h.k.app),backgroundColor:'#2B3A9B33',borderColor:'#2B3A9B',borderWidth:2,borderRadius:3,yAxisID:'y'},
+    {type:'line',label:'% A.U',data:hist.map(h=>+h.k.pAU.toFixed(1)),borderColor:'#B8660A',borderWidth:2.5,tension:.4,pointRadius:4,fill:false,yAxisID:'y2'},
+  ]},{y2:{position:'right',grid:{display:false},ticks:{callback:v=>v+'%'}}});
+
+  mkCh('c-lot',{labels:lbl,datasets:[
+    {type:'bar',label:'Lots',data:hist.map(h=>h.k.lots),backgroundColor:'#1A256533',borderColor:'#1A2565',borderWidth:2,borderRadius:3},
+    {type:'bar',label:'DD',data:hist.map(h=>h.k.dd),backgroundColor:'#4A5BAA33',borderColor:'#4A5BAA',borderWidth:2,borderRadius:3},
+  ]},{});
+
+  mkCh('c-vvht',{labels:lbl,datasets:[
+    {label:'VVHT Offre (K€)',data:hist.map(h=>+(h.k.vvhtO/1000).toFixed(1)),borderColor:'#1A2565',backgroundColor:'#1A256520',fill:true,borderWidth:2.5,tension:.4,pointRadius:4},
+    {label:'VVHT Cmd (K€)',data:hist.map(h=>+(h.k.vvhtC/1000).toFixed(1)),borderColor:'#2B3A9B',backgroundColor:'#2B3A9B20',fill:true,borderWidth:2.5,tension:.4,pointRadius:4},
+  ]},{y:{ticks:{callback:v=>v+'K€'}}});
+
+  mkCh('c-conv',{labels:lbl,datasets:[
+    {label:'% Conv',data:hist.map(h=>+h.k.pConv.toFixed(1)),
+      backgroundColor:hist.map(h=>h.k.pConv>=25?'#1A7A4199':h.k.pConv>=10?'#B8660A99':'#B0202099'),
+      borderColor:hist.map(h=>h.k.pConv>=25?'#1A7A41':h.k.pConv>=10?'#B8660A':'#B02020'),
+      borderWidth:2,borderRadius:4},
+  ]},{type:'bar',y:{ticks:{callback:v=>v+'%'}}},false);
+}
+
+// ════════════════════════════════════════════════════════
+// RENDER: ÉQUIPE
+// ════════════════════════════════════════════════════════
+function renderEquipe(){
+  const c=document.getElementById('eq-c');
+  const rows=fc();
+  if(!rows.length){c.innerHTML=mkEmpty('Aucune donnée');return;}
+
+  const k=kpis(agg(rows));
+  const lastSem=getLastSem();
+  const prevSem=getPrevSem();
+  const kP=prevSem?kpis(agg(fc({sem:[prevSem]}))):null;
+  const pros=uniq(rows.map(r=>r.nom)).sort();
+  const eqs=uniq(rows.map(r=>r.equipe));
+  const wks=getWeeks();
+  const hist=wks.map(w=>({w,k:kpis(agg(fc({sem:[w]})))}));
+
+  let h=`
+  <div class="kg k6">
+    ${kcard('Appels',      k.app,          '',                'd',                kP?trd(k.app,kP.app):null)}
+    ${kcard('% A.U',       pct(k.pAU),     k.au+' utiles',   ragKv(k.pAU,30,20), kP?trd(k.pAU,kP.pAU):null)}
+    ${kcard('Lots',        k.lots,         pct(k.pLot),       '',                 kP?trd(k.lots,kP.lots):null)}
+    ${kcard('DD',          k.dd,           pct(k.pDD)+'/lot', ragKv(k.pDD,60,30), kP?trd(k.dd,kP.dd):null)}
+    ${kcard('VVHT Offre',  eur(k.vvhtO),   k.nbOff+' offres','m',                kP?trd(k.vvhtO,kP.vvhtO):null)}
+    ${kcard('% Conv',      pct(k.pConv),   eur(k.vvhtC),     ragKv(k.pConv,25,10),kP?trd(k.pConv,kP.pConv):null)}
+  </div>`;
+
+
+  // ── PRÉSENCE ÉQUIPE (dernière semaine disponible)
+  const eqsList = uniq(rows.map(r=>r.equipe));
+  const presEqW = D.presWeek.filter(pw=>!eqsList.length||eqsList.includes(pw.equipe)||eqsList.some(eq=>pw.equipe.includes(eq.split('_').slice(-1)[0])));
+  if(presEqW.length){
+    const lastPresS = presEqW.map(p=>p.sem).sort().slice(-1)[0];
+    const presLast = presEqW.filter(p=>p.sem===lastPresS);
+    const totPl=presLast.reduce((s,p)=>s+p.plan,0);
+    const totHp=presLast.reduce((s,p)=>s+p.hp,0);
+    const avgAbs=totPl?presLast.reduce((s,p)=>s+p.plan*p.txAbs,0)/totPl:0;
+    const avgRet=totPl?presLast.reduce((s,p)=>s+p.plan*p.txRet,0)/totPl:0;
+    const etpTot=totHp/40;
+    h+=`<div class="sh"><div class="shb" style="background:var(--green)"></div><div class="sht">Présence — ${fmtSem(lastPresS)}</div></div>`;
+    h+=`<div class="pkm" style="margin-bottom:16px">
+      <div class="pkmk d"><div class="v">${totPl.toFixed(1)}</div><div class="l">NB Planifié</div></div>
+      <div class="pkmk ${totHp/totPl/8>=0.9?'g':totHp/totPl/8>=0.75?'a':'r'}"><div class="v">${presLast.reduce((s,p)=>s+p.pres,0).toFixed(1)}</div><div class="l">NB Présent</div></div>
+      <div class="pkmk m"><div class="v">${totHp.toFixed(0)}h</div><div class="l">Total HP</div></div>
+      <div class="pkmk ${etpTot/(totPl/5)>=0.9?'g':etpTot/(totPl/5)>=0.75?'a':'r'}"><div class="v">${etpTot.toFixed(2)}</div><div class="l">ETP</div></div>
+      <div class="pkmk ${avgAbs<0.05?'g':avgAbs<0.08?'a':'r'}"><div class="v">${(avgAbs*100).toFixed(1)}%</div><div class="l">TX ABS</div></div>
+      <div class="pkmk ${avgRet<0.02?'g':avgRet<0.05?'a':'r'}"><div class="v">${(avgRet*100).toFixed(1)}%</div><div class="l">TX Retard</div></div>
+    </div>
+    <div class="tw" style="margin-bottom:16px"><table><thead><tr>
+      <th>Prospecteur</th><th>NB Plan.</th><th>NB Prés.</th><th>Total HP</th><th>ETP</th><th>TX ABS</th><th>TX Retard</th><th>Statut</th>
+    </tr></thead><tbody>`;
+    presLast.sort((a,b)=>b.hp-a.hp).forEach(pw=>{
+      const ef=pw.plan>0?pw.hp/(pw.plan*8):0;
+      const stat=ef>=0.9&&pw.txAbs<0.10?'🟢':ef>=0.75&&pw.txAbs<0.20?'🟡':'🔴';
+      const canNav=CU.role==='admin'||CU.role==='n1'||(CU.role==='prospecteur'&&CU.nom===pw.nom);
+      h+=`<tr>
+        <td>${canNav?`<span class="lnk" onclick="selPros('${pw.nom}')">${pw.nom}</span>`:pw.nom}</td>
+        <td>${pw.plan.toFixed(1)}</td><td>${pw.pres.toFixed(1)}</td>
+        <td>${pw.hp.toFixed(0)}h</td>
+        <td>${(pw.hp/40).toFixed(2)}</td>
+        <td><span class="b ${pw.txAbs<0.05?'bg':pw.txAbs<0.08?'ba':'br'}">${(pw.txAbs*100).toFixed(1)}%</span></td>
+        <td><span class="b ${pw.txRet<0.02?'bg':pw.txRet<0.05?'ba':'br'}">${(pw.txRet*100).toFixed(1)}%</span></td>
+        <td style="text-align:center;font-size:15px">${stat}</td>
+      </tr>`;
+    });
+    h+=`</tbody></table></div>`;
+  }
+  h+=`<div class="sh"><div class="shb"></div><div class="sht">Performance individuelle</div><div class="shs">${pros.length} prospecteurs</div></div>
+  <div class="tw"><table><thead><tr>
+    <th>Prospecteur</th><th>Appels</th><th>% A.U</th><th>Lots</th><th>% Lot/App</th>
+    <th>DD</th><th>% DD/Lot</th><th>VVHT Offre</th><th>VVHT Cmd</th><th>% Conv</th><th>TX Couv. 3M</th><th>RE Retard</th><th>RE Faire</th>
+  </tr></thead><tbody>`;
+
+  pros.forEach(p=>{
+    const pk=kpis(agg(fc({pros:[p]})));
+    const re=reFor(p);
+    const canNav=CU.role==='admin'||CU.role==='n1'||(CU.role==='prospecteur'&&CU.nom===p);
+    h+=`<tr>
+      <td>${canNav?`<span class="lnk" onclick="selPros('${p}')">${p}</span>`:p}</td>
+      <td>${pk.app}</td>
+      <td><span class="b ${ragCls(pk.pAU,30,20)}">${pct(pk.pAU)}</span></td>
+      <td>${pk.lots}</td><td>${pct(pk.pLot)}</td>
+      <td>${pk.dd}</td>
+      <td><span class="b ${ragCls(pk.pDD,60,30)}">${pct(pk.pDD)}</span></td>
+      <td>${pk.vvhtO>0?eur(pk.vvhtO):'—'}</td>
+      <td>${pk.vvhtC>0?eur(pk.vvhtC):'—'}</td>
+      <td>${pk.pConv>0?`<span class="b ${ragCls(pk.pConv,25,10)}">${pct(pk.pConv)}</span>`:'—'}</td>
+      <td>${(()=>{const cv=couvForNom(p);return cv?`<span class="b ${cv.txCouv>=0.85?'bg':cv.txCouv>=0.70?'ba':'br'}">${fmtCouv(cv.txCouv)}</span>`:'—';})()}</td>
+      <td>${re?`<span class="b ${re.retard===0?'bg':re.retard<50?'ba':'br'}">${re.retard}</span>`:'—'}</td>
+      <td>${re?`<span class="b bb">${re.afaire}</span>`:'—'}</td>
+    </tr>`;
+  });
+
+  const totRe=D.re.filter(r=>!eqs.length||eqs.includes(r.equipe));
+  if(D.re.length===0) h+=`<div class="leg" style="border-left:3px solid var(--amber);background:var(--bga)">⚠ <strong>Relances (RE)</strong> : Onglet RE dans IMEX_DATA vide. Copier les données du rapport Relances Expirées (colonnes : Equipe | Acheteur | NEST | Nbre retard | J | J+1 | ... | J+6 | Total | Portfolio).</div>`;
+  if(D.couv.length===0) h+=`<div class="leg" style="border-left:3px solid var(--amber);background:var(--bga)">⚠ <strong>Couverture (COUV)</strong> : Onglet COUV dans IMEX_DATA vide. Copier les données brutes du fichier COUV_3_MOIS / onglet DATA TUNIS (colonnes M=prospecteur, N=équipe, V=OUI/0).</div>`;
+  h+=`</tbody><tfoot><tr>
+    <td>TOTAL</td><td>${k.app}</td><td>${pct(k.pAU)}</td><td>${k.lots}</td><td>${pct(k.pLot)}</td>
+    <td>${k.dd}</td><td>${pct(k.pDD)}</td><td>${eur(k.vvhtO)}</td><td>${eur(k.vvhtC)}</td><td>${pct(k.pConv)}</td>
+    <td>${(()=>{const ec=D.couv.filter(r=>!eqs.length||eqs.includes(r.equipe));return ec.length?fmtCouv(ec.reduce((s,r)=>s+r.txCouv,0)/ec.length):'—';})()}</td>
+    <td>${totRe.reduce((s,r)=>s+r.retard,0)}</td><td>${totRe.reduce((s,r)=>s+r.afaire,0)}</td>
+  </tr></tfoot></table></div>`;
+
+  h+=`<div class="ch2">
+    <div class="cc"><div class="ct">Lots & DD — Évolution</div><div class="cw" style="height:190px"><canvas id="c-eq-ld"></canvas></div></div>
+    <div class="cc"><div class="ct">VVHT Offre vs Cmd — Évolution</div><div class="cw" style="height:190px"><canvas id="c-eq-v"></canvas></div></div>
+  </div>`;
+  h+=`<div class="sh"><div class="shb"></div><div class="sht">Constat automatique équipe</div></div>`;
+  h+=`<div class="cg">${mkConstatEq(k,kP,pros,eqs)}</div>`;
+  h+=mkLeg('% A.U=App.Utiles/Appels · % Lot/App=Lots/Appels · % DD/Lot=DD/Lots · % Conv=VVHT Cmd/VVHT Offre','Cliquez sur un nom pour voir la fiche individuelle');
+  c.innerHTML=h;
+
+  const lbl=hist.map(h=>fmtSem(h.w));
+  mkCh('c-eq-ld',{labels:lbl,datasets:[
+    {type:'bar',label:'Lots',data:hist.map(h=>h.k.lots),backgroundColor:'#2B3A9B33',borderColor:'#2B3A9B',borderWidth:2,borderRadius:3,yAxisID:'y'},
+    {type:'bar',label:'DD',data:hist.map(h=>h.k.dd),backgroundColor:'#4A5BAA33',borderColor:'#4A5BAA',borderWidth:2,borderRadius:3,yAxisID:'y'},
+    {type:'line',label:'% DD/Lot',data:hist.map(h=>+h.k.pDD.toFixed(1)),borderColor:'#B8660A',borderWidth:2.5,tension:.4,pointRadius:4,fill:false,yAxisID:'y2'},
+  ]},{y2:{position:'right',grid:{display:false},ticks:{callback:v=>v+'%'}}});
+
+  mkCh('c-eq-v',{labels:lbl,datasets:[
+    {label:'VVHT Offre (K€)',data:hist.map(h=>+(h.k.vvhtO/1000).toFixed(1)),borderColor:'#1A2565',backgroundColor:'#1A256520',fill:true,borderWidth:2.5,tension:.4,pointRadius:4},
+    {label:'VVHT Cmd (K€)',data:hist.map(h=>+(h.k.vvhtC/1000).toFixed(1)),borderColor:'#2B3A9B',backgroundColor:'#2B3A9B20',fill:true,borderWidth:2.5,tension:.4,pointRadius:4},
+    {type:'line',label:'% Conv',data:hist.map(h=>+h.k.pConv.toFixed(1)),borderColor:'#1A7A41',borderWidth:2,tension:.4,pointRadius:3,fill:false,yAxisID:'y2',borderDash:[4,3]},
+  ]},{y:{ticks:{callback:v=>v+'K€'}},y2:{position:'right',grid:{display:false},ticks:{callback:v=>v+'%'}}});
+}
+
+// ════════════════════════════════════════════════════════
+// RENDER: GLOBAL N+1
+// ════════════════════════════════════════════════════════
+function renderGlobal(){
+  const c=document.getElementById('gl-c');
+  const teams=getTeams();
+  const wks=getWeeks();
+  if(!teams.length){c.innerHTML=mkEmpty('Aucune donnée');return;}
+
+  const tData=teams.map(eq=>({
+    eq,
+    k:kpis(agg(fc({eq:[eq]}))),
+    pros:uniq(D.cognos.filter(r=>r.equipe===eq).map(r=>r.nom)),
+    re:D.re.filter(r=>r.equipe===eq),
+  }));
+  const totK=kpis(agg(fc({})));
+  const totRe=D.re.reduce((s,r)=>s+r.retard,0);
+
+  let h=`<div class="sh"><div class="shb"></div><div class="sht">Vue d'ensemble — Toutes équipes</div><div class="shs">${teams.length} équipe(s) · ${uniq(D.cognos.map(r=>r.nom)).length} prospecteurs</div></div>`;
+
+  h+='<div class="tg">';
+  tData.forEach(({eq,k,pros,re})=>{
+    const totRet=re.reduce((s,r)=>s+r.retard,0);
+    h+=`<div class="tc" onclick="selTeam('${eq}')">
+      <div class="tc-hdr"><div class="tc-name">${eq}</div><div style="font-size:10px;color:var(--light)">${pros.length} pros</div></div>
+      <div class="tc-body">
+        <div class="tkr">
+          <div class="tk"><div class="v">${k.app}</div><div class="l">Appels</div></div>
+          <div class="tk"><div class="v" style="color:${k.pAU>=30?'var(--green)':k.pAU>=20?'var(--amber)':'var(--red)'}">${pct(k.pAU)}</div><div class="l">% A.U</div></div>
+          <div class="tk"><div class="v">${k.lots}</div><div class="l">Lots</div></div>
+        </div>
+        <div class="tkr">
+          <div class="tk"><div class="v">${k.dd}</div><div class="l">DD</div></div>
+          <div class="tk"><div class="v" style="color:${k.pConv>=25?'var(--green)':k.pConv>=10?'var(--amber)':'var(--red)'}">${pct(k.pConv)}</div><div class="l">% Conv</div></div>
+          <div class="tk"><div class="v" style="color:${totRet>100?'var(--red)':totRet>0?'var(--amber)':'var(--green)'}">${totRet}</div><div class="l">RE Retard</div></div>
+        </div>
+        <div style="margin-top:8px;font-size:11px;display:flex;gap:12px">
+          <span>Offre: <strong>${eur(k.vvhtO)}</strong></span>
+          <span>Cmd: <strong>${eur(k.vvhtC)}</strong></span>
+          <span style="color:${k.pConv>=25?'var(--green)':k.pConv>=10?'var(--amber)':'var(--red)'}">Conv: <strong>${pct(k.pConv)}</strong></span>
+        </div>
+      </div>
+    </div>`;
+  });
+  h+='</div>';
+
+  h+=`<div class="sh"><div class="shb"></div><div class="sht">Tableau comparatif global</div></div>
+  <div class="tw"><table><thead><tr>
+    <th>Équipe</th><th>Pros</th><th>Appels</th><th>% A.U</th><th>Lots</th><th>% Lot/App</th>
+    <th>DD</th><th>% DD/Lot</th><th>VVHT Offre</th><th>VVHT Cmd</th><th>% Conv</th><th>TX Couv. 3M</th><th>RE Retard</th>
+  </tr></thead><tbody>`;
+
+  tData.forEach(({eq,k,pros,re})=>{
+    const totRet=re.reduce((s,r)=>s+r.retard,0);
+    h+=`<tr>
+      <td><span class="lnk" onclick="selTeam('${eq}')">${eq}</span></td>
+      <td>${pros.length}</td><td>${k.app}</td>
+      <td><span class="b ${ragCls(k.pAU,30,20)}">${pct(k.pAU)}</span></td>
+      <td>${k.lots}</td><td>${pct(k.pLot)}</td><td>${k.dd}</td>
+      <td><span class="b ${ragCls(k.pDD,60,30)}">${pct(k.pDD)}</span></td>
+      <td>${k.vvhtO>0?`<strong>${eur(k.vvhtO)}</strong>`:'—'}</td>
+      <td>${k.vvhtC>0?`<strong>${eur(k.vvhtC)}</strong>`:'—'}</td>
+      <td><span class="b ${ragCls(k.pConv,25,10)}">${pct(k.pConv)}</span></td>
+      <td>${(()=>{const ec=couvEqFor(eq);if(!ec.length)return '—';const avg=ec.reduce((s,r)=>s+r.txCouv,0)/ec.length;return `<span class="b ${avg>=0.85?'bg':avg>=0.70?'ba':'br'}">${fmtCouv(avg)}</span>`;})()}</td>
+      <td><span class="b ${totRet===0?'bg':totRet<100?'ba':'br'}">${totRet}</span></td>
+    </tr>`;
+  });
+  h+=`</tbody><tfoot><tr>
+    <td>GRAND TOTAL</td><td>${uniq(D.cognos.map(r=>r.nom)).length}</td>
+    <td>${totK.app}</td><td>${pct(totK.pAU)}</td><td>${totK.lots}</td><td>${pct(totK.pLot)}</td>
+    <td>${totK.dd}</td><td>${pct(totK.pDD)}</td><td>${eur(totK.vvhtO)}</td><td>${eur(totK.vvhtC)}</td>
+    <td>${pct(totK.pConv)}</td>
+    <td>${D.couv.length?fmtCouv(D.couv.reduce((s,r)=>s+r.txCouv,0)/D.couv.length):'—'}</td>
+    <td>${totRe}</td>
+  </tr></tfoot></table></div>`;
+
+  const colors=['#1A2565','#2B3A9B','#4A5BAA','#7B8FC4','#A0AFDA','#C8D5E8'];
+  h+=`<div class="ch2">
+    <div class="cc"><div class="ct">VVHT Offre vs Cmd — Toutes équipes (K€)</div><div class="cw" style="height:210px"><canvas id="c-gl-v"></canvas></div></div>
+    <div class="cc"><div class="ct">% A.U — Toutes équipes</div><div class="cw" style="height:210px"><canvas id="c-gl-au"></canvas></div></div>
+  </div>
+  <div class="ch2">
+    <div class="cc"><div class="ct">Lots — Évolution toutes équipes</div><div class="cw" style="height:190px"><canvas id="c-gl-lots"></canvas></div></div>
+    <div class="cc"><div class="ct">% Conversion — Toutes équipes</div><div class="cw" style="height:190px"><canvas id="c-gl-conv"></canvas></div></div>
+  </div>`;
+  h+=`<div class="leg">💡 Cliquez sur une carte pour voir le détail équipe</div>`;
+  c.innerHTML=h;
+
+  const lbl=wks.map(w=>fmtSem(w));
+  mkCh('c-gl-v',{labels:lbl,datasets:teams.map((eq,i)=>({
+    label:eq.split('_').slice(-2).join(' '),
+    data:wks.map(w=>{const r=fc({eq:[eq],sem:[w]});return r.length?+(agg(r).vvhtO/1000).toFixed(1):0;}),
+    borderColor:colors[i%colors.length],backgroundColor:colors[i%colors.length]+'22',
+    fill:true,borderWidth:2.5,tension:.4,pointRadius:4,
+  }))},{y:{ticks:{callback:v=>v+'K€'}}});
+
+  mkCh('c-gl-au',{labels:lbl,datasets:teams.map((eq,i)=>({
+    label:eq.split('_').slice(-2).join(' '),
+    data:wks.map(w=>{const r=fc({eq:[eq],sem:[w]});if(!r.length)return 0;const a=agg(r);return a.app>0?+(a.au/a.app*100).toFixed(1):0;}),
+    borderColor:colors[i%colors.length],borderWidth:2.5,tension:.4,pointRadius:4,fill:false,
+  }))},{y:{ticks:{callback:v=>v+'%'},suggestedMin:0}});
+
+  mkCh('c-gl-lots',{labels:lbl,datasets:teams.map((eq,i)=>({
+    label:eq.split('_').slice(-2).join(' '),
+    data:wks.map(w=>{const r=fc({eq:[eq],sem:[w]});return r.length?agg(r).lots:0;}),
+    borderColor:colors[i%colors.length],backgroundColor:colors[i%colors.length]+'33',
+    fill:true,borderWidth:2,tension:.4,pointRadius:3,
+  }))},{});
+
+  mkCh('c-gl-conv',{labels:lbl,datasets:teams.map((eq,i)=>({
+    label:eq.split('_').slice(-2).join(' '),
+    data:wks.map(w=>{const r=fc({eq:[eq],sem:[w]});if(!r.length)return 0;const a=agg(r);return a.vvhtO>0?+(a.vvhtC/a.vvhtO*100).toFixed(1):0;}),
+    borderColor:colors[i%colors.length],borderWidth:2.5,tension:.4,pointRadius:4,fill:false,
+  }))},{y:{ticks:{callback:v=>v+'%'},suggestedMin:0}});
+}
+
+// ════════════════════════════════════════════════════════
+// CONSTAT GENERATORS
+// ════════════════════════════════════════════════════════
+let nom_ctx=null;
+function mkConstatPros(k,kP,re){
+  const items=[];
+  // ── Appels utiles
+  if(k.pAU<20) items.push({t:'al',tit:`A.U critique (${pct(k.pAU)})`,bdy:`${k.au} appels utiles sur ${k.app}. Seuil min 20%. Revoir le ciblage et le pitch d'accroche.`});
+  else if(k.pAU>=30) items.push({t:'ok',tit:`Excellent taux A.U (${pct(k.pAU)})`,bdy:`${k.au} utiles sur ${k.app} appels. Au-dessus du seuil cible 30%.`});
+  else items.push({t:'wn',tit:`A.U perfectible (${pct(k.pAU)})`,bdy:`${k.au} utiles sur ${k.app} appels. Cible ≥30%. Intensifier la préparation des appels.`});
+  // ── Conversion
+  if(k.pConv===0&&k.vvhtO>0) items.push({t:'al',tit:`0% concrétisation — ${eur(k.vvhtO)} d'offres pendantes`,bdy:`Relancer en priorité les ${k.nbOff} offre(s) validée(s). Identifier les blocages acheteurs.`});
+  else if(k.pConv>=25) items.push({t:'ok',tit:`Bonne concrétisation (${pct(k.pConv)})`,bdy:`${eur(k.vvhtC)} commandés sur ${eur(k.vvhtO)} d'offres. ${k.nbCmd} commande(s).`});
+  else if(k.pConv>0&&k.pConv<10) items.push({t:'wn',tit:`Faible concrétisation (${pct(k.pConv)})`,bdy:`Cible ≥25%. ${eur(k.vvhtC)} cmd sur ${eur(k.vvhtO)} offres. Analyser les offres non converties.`});
+  // ── VVHT
+  if(k.vvhtO>0&&k.vvhtC===0) items.push({t:'wn',tit:`Aucune commande — ${eur(k.vvhtO)} d'offres`,bdy:`Relancer les fournisseurs ayant des offres validées non commandées.`});
+  // ── Tendance vs semaine précédente
+  if(kP){
+    if(k.lots<kP.lots&&k.lots<kP.lots*0.8) items.push({t:'wn',tit:`Baisse lots (${k.lots} vs ${kP.lots} sem. préc.)`,bdy:`Chute de ${Math.round((1-k.lots/kP.lots)*100)}%. Intensifier la prospection fournisseurs.`});
+    if(k.app>kP.app*1.2) items.push({t:'ok',tit:`Volume d'appels en hausse (+${k.app-kP.app})`,bdy:`${k.app} vs ${kP.app} sem. préc. Bonne dynamique.`});
+  }
+  // ── RE
+  if(re&&re.total>0){
+    if(re.retard>100) items.push({t:'al',tit:`${re.retard} relances en retard`,bdy:`Plan de rattrapage urgent. ${re.afaire} planifiées J→J+6. Portfolio: ${re.total}.`});
+    else if(re.retard>0) items.push({t:'wn',tit:`${re.retard} relances en retard`,bdy:`${re.afaire} relances planifiées cette semaine. Surveiller.`});
+    else items.push({t:'ok',tit:`Portfolio RE sans retard`,bdy:`${re.afaire} relances planifiées J→J+6. Bonne gestion.`});
+  }
+  // ── Couverture
+  if(nom_ctx){const cv=couvForNom(nom_ctx);if(cv){if(cv.txCouv<0.70) items.push({t:'al',tit:`Couverture utile faible (${fmtCouv(cv.txCouv)})`,bdy:`${fmtCouv(1-cv.txCouv)} des fournisseurs non joignables sur 3 mois. Action de relance prioritaire.`});else if(cv.txCouv>=0.85) items.push({t:'ok',tit:`Bonne couverture (${fmtCouv(cv.txCouv)})`,bdy:`Portefeuille bien couvert sur les 3 derniers mois.`});else items.push({t:'wn',tit:`Couverture à améliorer (${fmtCouv(cv.txCouv)})`,bdy:`Cible ≥85%. ${fmtCouv(1-cv.txCouv)} de fournisseurs non joignables.`});}}
+  if(!items.length) items.push({t:'info',tit:'Situation stable',bdy:'Aucune alerte majeure détectée.'});
+  return items.map(mkCstCard).join('');
+}
+
+function mkConstatEq(k,kP,pros,eqs){
+  const items=[];
+  const pd=pros.map(p=>({p,k:kpis(agg(fc({pros:[p]})))}));
+  const byAU=[...pd].sort((a,b)=>b.k.pAU-a.k.pAU);
+  // ── Top performer
+  if(byAU.length&&byAU[0].k.pAU>=25) items.push({t:'ok',tit:`Meilleur A.U : ${byAU[0].p} (${pct(byAU[0].k.pAU)})`,bdy:`${byAU[0].k.app} appels · ${byAU[0].k.au} utiles · ${byAU[0].k.lots} lots.`});
+  // ── Prospecteur en difficulté
+  const bot=byAU[byAU.length-1];
+  if(byAU.length>1&&bot.k.pAU<20) items.push({t:'al',tit:`A.U critique : ${bot.p} (${pct(bot.k.pAU)})`,bdy:`${bot.k.app} appels, ${bot.k.au} utiles. Coaching individuel recommandé.`});
+  // ── Conversion équipe
+  if(k.pConv===0&&k.vvhtO>0) items.push({t:'al',tit:`Aucune commande — ${eur(k.vvhtO)} d'offres`,bdy:`${k.nbOff} offre(s) validée(s) sans commande. Relancer en urgence.`});
+  else if(k.pConv<10&&k.vvhtO>0) items.push({t:'al',tit:`Faible concrétisation équipe (${pct(k.pConv)})`,bdy:`${eur(k.vvhtC)} commandés sur ${eur(k.vvhtO)} d'offres. Cible ≥25%.`});
+  else if(k.pConv>=25) items.push({t:'ok',tit:`Bonne concrétisation équipe (${pct(k.pConv)})`,bdy:`${eur(k.vvhtC)} cmd sur ${eur(k.vvhtO)} offres. Maintenir.`});
+  // ── Top convertisseur
+  const byConv=[...pd].sort((a,b)=>b.k.pConv-a.k.pConv).filter(x=>x.k.pConv>0);
+  if(byConv.length) items.push({t:'info',tit:`Meilleure conversion : ${byConv[0].p} (${pct(byConv[0].k.pConv)})`,bdy:`${eur(byConv[0].k.vvhtC)} commandés.`});
+  // ── Tendance VVHT
+  if(kP&&k.vvhtO>kP.vvhtO*1.1) items.push({t:'ok',tit:`VVHT Offre en hausse (+${eur(k.vvhtO-kP.vvhtO)})`,bdy:`${eur(k.vvhtO)} vs ${eur(kP.vvhtO)} semaine précédente. +${Math.round((k.vvhtO/kP.vvhtO-1)*100)}%.`});
+  else if(kP&&k.vvhtO<kP.vvhtO*0.8) items.push({t:'wn',tit:`VVHT Offre en baisse (${eur(k.vvhtO)})`,bdy:`${eur(kP.vvhtO)} sem. préc. → ${eur(k.vvhtO)} cette sem. Analyser les blocages.`});
+  // ── RE
+  const reT=D.re.filter(r=>!eqs.length||eqs.includes(r.equipe));
+  const crit=reT.filter(r=>r.retard>50);
+  if(crit.length) items.push({t:'al',tit:`${crit.length} prospecteur(s) RE critique`,bdy:crit.map(r=>`${r.nom}: ${r.retard} retard`).join(' · ')});
+  // ── Couverture
+  const eqCouv=D.couv.filter(r=>!eqs.length||eqs.includes(r.equipe));
+  if(eqCouv.length){
+    const avgC=eqCouv.reduce((s,r)=>s+r.txCouv,0)/eqCouv.length;
+    const lowC=eqCouv.filter(r=>r.txCouv<0.70);
+    if(lowC.length) items.push({t:'al',tit:`${lowC.length} couverture(s) utile <70%`,bdy:lowC.slice(0,3).map(r=>`${r.nom}: ${fmtCouv(r.txCouv)}`).join(' · ')});
+    else if(avgC>=0.85) items.push({t:'ok',tit:`Bonne couverture équipe (${fmtCouv(avgC)} moy.)`,bdy:'Portefeuilles bien couverts sur 3 mois.'});
+  }
+  if(!items.length) items.push({t:'info',tit:'Équipe en situation stable',bdy:'Aucune alerte majeure.'});
+  return items.map(mkCstCard).join('');
+}
+
+function mkCstCard(i){
+  const icons={al:'🔴 Alerte',wn:'🟡 Attention',ok:'✅ Point positif',info:'ℹ️ Info'};
+  return`<div class="card-c ${i.t}"><div class="ctag ${i.t}">${icons[i.t]}</div><div class="ctit">${i.tit}</div><div class="cbdy">${i.bdy}</div></div>`;
+}
+
+
+// ════════════════════════════════════════════════════════
+// RENDER: PRÉSENCE (vue dédiée — 3 sous-onglets)
+// ════════════════════════════════════════════════════════
+function pctFmt(v){ return(v*100).toFixed(1)+'%'; }
+
+function presSubTabs(){
+  const isAdmin=CU.role==='admin'||CU.role==='n1';
+  return`<div class="stabs">
+    ${CU.role==='prospecteur'?
+      `<button class="stab active" onclick="setPresView('prospecteur',this)">👤 Ma Présence</button>`:
+      `<button class="stab ${curPresView==='prospecteur'?'active':''}" onclick="setPresView('prospecteur',this)">👤 Prospecteur</button>
+       <button class="stab ${curPresView==='equipe'?'active':''}" onclick="setPresView('equipe',this)">👥 Équipe</button>
+       ${isAdmin?`<button class="stab ${curPresView==='global'?'active':''}" onclick="setPresView('global',this)">🌐 Global</button>`:''}`
+    }
+  </div>`;
+}
+
+function setPresView(v,btn){
+  curPresView=v;
+  document.querySelectorAll('.stab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const c=document.getElementById('pres-c');
+  renderPresContent(c);
+}
+
+function renderPresence(){
+  const c=document.getElementById('pres-c');
+  if(CU.role==='prospecteur') curPresView='prospecteur';
+  if(!D.presWeek.length&&!D.presDaily.length){
+    c.innerHTML=`<div class="sh"><div class="shb"></div><div class="sht">📋 Présence & ETP</div></div>`
+      +presSubTabs()
+      +mkEmpty('Aucune donnée de présence — Vérifiez SHEET_ID_PRESENCE et les onglets PRESENCE / PRESENCE_DAILY');
+    return;
+  }
+  c.innerHTML=`<div class="sh"><div class="shb"></div><div class="sht">📋 Présence & ETP</div></div>`
+    +presSubTabs()
+    +'<div id="pres-sub"></div>';
+  renderPresContent(c);
+}
+
+function renderPresContent(c){
+  const sub=document.getElementById('pres-sub')||c;
+  if(curPresView==='prospecteur') renderPresProspecteur(sub);
+  else if(curPresView==='equipe')  renderPresEquipe(sub);
+  else                             renderPresGlobal(sub);
+}
+
+// ── SUB: PROSPECTEUR ──
+function renderPresProspecteur(c){
+  const isAdmin=CU.role==='admin'||CU.role==='n1';
+  const wks=uniq(D.presWeek.map(p=>p.sem)).sort();
+  const lastW=wks[wks.length-1];
+  const prevW=wks.length>1?wks[wks.length-2]:null;
+
+  // If admin: show picker, then fiche
+  // If prospecteur: show own fiche directly
+  let nom=null;
+  if(CU.role==='prospecteur') nom=CU.nom;
+  else {
+    // show list; clicking calls presSelectPros
+    const allNoms=uniq(D.presWeek.map(p=>p.nom)).sort();
+    let h=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-bottom:16px">`;
+    allNoms.forEach(nm=>{
+      const pw=findPresWeek(nm).sort((a,b)=>b.sem.localeCompare(a.sem));
+      const last=pw[0];
+      const ef=last&&last.plan>0?last.hp/(last.plan*8):0;
+      const stat=ef>=0.9&&(last?last.txAbs:1)<0.10?'🟢':ef>=0.75&&(last?last.txAbs:1)<0.20?'🟡':'🔴';
+      // Day grid for this prospecteur (last week)
+      const nmDays = lastW ? findPresDaily(nm).filter(d=>d.sem===lastW).sort((a,b)=>a.date.localeCompare(b.date)) : [];
+      h+=`<div class="cc" style="cursor:pointer" onclick="presSelectPros('${nm.replace(/'/g,"\'")}')" title="Voir le détail">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <div style="width:36px;height:36px;background:var(--royal);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:12px">${initials(nm)}</div>
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--deep)">${nm}</div>
+            <div style="font-size:9.5px;color:var(--gt)">${last?last.equipe.split('_').slice(-2).join(' '):''}</div>
+          </div>
+          <span style="margin-left:auto;font-size:16px">${stat}</span>
+        </div>
+        ${nmDays.length?`<div style="display:flex;gap:3px;margin-bottom:8px;flex-wrap:wrap">
+          ${nmDays.map(d=>{
+            const c=d.code||'—';const ib=c==='—'||c==='0'||c==='';
+            const bg=ib?'#f0f0f0':c==='P'?'#C6EFCE':c==='A'?'#FFC7CE':c==='CP'?'#BDD7EE':c==='AM'||c==='CSS'?'#FFE699':c.includes('1/2')?'#CCFFCC':'#eee';
+            const col=ib?'#aaa':c==='P'?'#1A7A41':c==='A'?'#B02020':c==='CP'?'#2E75B6':'#555';
+            return `<div style="flex:1;min-width:32px;background:${bg};border-radius:4px;padding:3px 2px;text-align:center">
+              <div style="font-size:8px;color:#888">${d.jour}</div>
+              <div style="font-size:9px;font-weight:800;color:${col}">${ib?'?':c}</div>
+              <div style="font-size:7.5px;color:#999">${ib?'':d.hp>0?d.hp.toFixed(0)+'h':'0h'}</div>
+            </div>`;
+          }).join('')}
+        </div>`:''}
+        ${last?`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;text-align:center">
+          <div><div style="font-size:14px;font-weight:800;color:var(--royal)">${(last.hp/40).toFixed(2)}</div><div style="font-size:8.5px;color:var(--gt);text-transform:uppercase">ETP</div></div>
+          <div><div style="font-size:14px;font-weight:800;color:${last.txAbs<0.05?'var(--green)':last.txAbs<0.08?'var(--amber)':'var(--red)'}">${(last.txAbs*100).toFixed(1)}%</div><div style="font-size:8.5px;color:var(--gt);text-transform:uppercase">TX ABS</div></div>
+          <div><div style="font-size:14px;font-weight:800;color:${last.hp>=35?'var(--green)':last.hp>=25?'var(--amber)':'var(--red)'}">${last.hp.toFixed(0)}h</div><div style="font-size:8.5px;color:var(--gt);text-transform:uppercase">HP sem.</div></div>
+        </div>`:'<div style="font-size:10px;color:var(--gt);text-align:center">Aucune donnée</div>'}
+      </div>`;
+    });
+    h+=`</div>`;
+    c.innerHTML=h; return;
+  }
+
+  renderPresFiche(c, nom, wks);
+}
+
+function presSelectPros(nom){
+  const sub=document.getElementById('pres-sub');
+  if(!sub)return;
+  const wks=uniq(D.presWeek.map(p=>p.sem)).sort();
+  // Add back button
+  sub.innerHTML=`<button onclick="renderPresence()" style="margin-bottom:12px;padding:4px 12px;border:1.5px solid var(--gl);border-radius:6px;font-size:11.5px;font-weight:600;color:var(--gt);background:var(--white);cursor:pointer">← Retour</button><div id="pres-fiche"></div>`;
+  renderPresFiche(document.getElementById('pres-fiche'), nom, wks);
+}
+
+function renderPresFiche(c, nom, wks){
+  const pwAll=findPresWeek(nom).sort((a,b)=>a.sem.localeCompare(b.sem));
+  const lastPW=pwAll[pwAll.length-1];
+  const prevPW=pwAll.length>1?pwAll[pwAll.length-2]:null;
+  if(!lastPW){c.innerHTML=mkEmpty(`Aucune donnée pour ${nom}`);return;}
+
+  const ef=lastPW.plan>0?lastPW.hp/(lastPW.plan*8):0;
+  const dEtp=prevPW?(lastPW.hp/40)-(prevPW.hp/40):null;
+
+  let h=`<div class="ph" style="margin-bottom:14px">
+    <div class="ph-av">${initials(nom)}</div>
+    <div>
+      <div class="ph-name">${nom}</div>
+      <div class="ph-meta">${lastPW.equipe.split('_').slice(-2).join(' ')} · ${fmtSem(lastPW.sem)}</div>
+    </div>
+    <div class="ph-kpis">
+      <div class="pk"><div class="v" style="color:${(lastPW.hp/40)>=0.9*lastPW.plan/5?'var(--green)':(lastPW.hp/40)>=0.75*lastPW.plan/5?'var(--amber)':'var(--red)'}">${(lastPW.hp/40).toFixed(2)}</div><div class="l">ETP</div></div>
+      <div class="pk"><div class="v">${lastPW.hp.toFixed(0)}h</div><div class="l">Total HP</div></div>
+      <div class="pk"><div class="v" style="color:${lastPW.txAbs<0.05?'var(--green)':lastPW.txAbs<0.08?'var(--amber)':'var(--red)'}">${(lastPW.txAbs*100).toFixed(1)}%</div><div class="l">TX ABS</div></div>
+      <div class="pk"><div class="v" style="color:${lastPW.txRet<0.02?'var(--green)':lastPW.txRet<0.05?'var(--amber)':'var(--red)'}">${(lastPW.txRet*100).toFixed(1)}%</div><div class="l">TX Retard</div></div>
+      ${dEtp!==null?`<div class="pk"><div class="v kt ${dEtp>=0?'up':'dn'}" style="font-size:14px">${dEtp>=0?'▲ +':'▼ '}${Math.abs(dEtp).toFixed(2)}</div><div class="l">Δ ETP</div></div>`:''}
+    </div>
+  </div>`;
+
+  // Calendrier semaine par semaine
+  wks.forEach(sem=>{
+    const days=findPresDaily(nom).filter(d=>d.sem===sem).sort((a,b)=>a.date.localeCompare(b.date));
+    const pw=findPresWeek(nom).find(p=>p.sem===sem);
+    if(!days.length&&!pw)return;
+    h+=`<div class="cc" style="margin-bottom:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:12px;font-weight:700;color:var(--deep)">${fmtSem(sem)}</div>
+        ${pw?`<div style="display:flex;gap:14px;font-size:10.5px">
+          <span>HP: <strong>${pw.hp.toFixed(0)}h</strong></span>
+          <span>ETP: <strong style="color:${pw.hp/40>=0.9?'var(--green)':pw.hp/40>=0.7?'var(--amber)':'var(--red)'}">${(pw.hp/40).toFixed(2)}</strong></span>
+          <span>ABS: <strong style="color:${pw.txAbs<0.05?'var(--green)':pw.txAbs<0.08?'var(--amber)':'var(--red)'}">${(pw.txAbs*100).toFixed(1)}%</strong></span>
+          <span>Retard: <strong style="color:${pw.txRet<0.02?'var(--green)':pw.txRet<0.05?'var(--amber)':'var(--red)'}">${(pw.txRet*100).toFixed(1)}%</strong></span>
+        </div>`:''}
+      </div>
+      <div class="prow">`;
+    days.forEach(d=>{
+      const code=d.code||'—';
+      const isBlank = code==='—'||code===''||code==='0';
+      const cls=isBlank?'vide':code==='P'?'P':code==='A'?'A':code==='CP'?'CP':code==='CSS'?'CSS':code==='AM'?'AM':code==='MA'?'MA':(code.includes('1/2'))?'demi':'vide';
+      const displayCode = isBlank ? '?' : code;
+      const hpStr = isBlank ? '' : d.hp>0 ? d.hp.toFixed(1)+'h' : '0h';
+      h+=`<div class="pday ${cls}" title="${isBlank?'Non saisi':code}">
+        <span class="pday-d">${d.jour} ${d.date.slice(0,5)}</span>
+        <span class="pday-c">${displayCode}</span>
+        <span class="pday-hp">${hpStr}${d.retH>0?` <span style="color:var(--red)">-${d.retH.toFixed(1)}h</span>`:''}</span>
+      </div>`;
+    });
+    h+=`</div></div>`;
+  });
+
+  // Alertes
+  const alerts=[];
+  if(lastPW.txAbs>=0.08)alerts.push({t:'al',tit:`Absentéisme critique (${pctFmt(lastPW.txAbs)})`,bdy:'Seuil critique dépassé (20%). Entretien recommandé.'});
+  else if(lastPW.txAbs>=0.05)alerts.push({t:'wn',tit:`Absentéisme modéré (${pctFmt(lastPW.txAbs)})`,bdy:'Surveiller la tendance. Seuil critique à 20%.'});
+  else alerts.push({t:'ok',tit:`Bonne présence (TX ABS ${pctFmt(lastPW.txAbs)})`,bdy:'Taux d\'absentéisme maîtrisé.'});
+  if(lastPW.txRet>=0.05)alerts.push({t:'wn',tit:`Retards significatifs (${pctFmt(lastPW.txRet)})`,bdy:'Impact sur les heures productives. Cible : <5%.'});
+  else alerts.push({t:'ok',tit:`Ponctualité maîtrisée (${pctFmt(lastPW.txRet)})`,bdy:'Faible impact des retards.'});
+  if(dEtp!==null){
+    if(dEtp<-0.5)alerts.push({t:'al',tit:`ETP en baisse (${dEtp.toFixed(2)} vs semaine préc.)`,bdy:`${prevPW.hp.toFixed(0)}h → ${lastPW.hp.toFixed(0)}h productives.`});
+    else if(dEtp>0.3)alerts.push({t:'ok',tit:`ETP en hausse (+${dEtp.toFixed(2)})`,bdy:`${prevPW.hp.toFixed(0)}h → ${lastPW.hp.toFixed(0)}h productives.`});
+  }
+
+  h+=`<div class="sh" style="margin-top:4px"><div class="shb"></div><div class="sht">Alertes</div></div>`;
+  h+=`<div class="cg">${alerts.map(mkCstCard).join('')}</div>`;
+  h+=mkLeg('HP = heures productives · ETP = Total HP ÷ 40h · TX ABS = absences ÷ jours planifiés','🟢 ETP≥90% · TX ABS<5%   🟡 ETP 75–90% · TX ABS 5–20%   🔴 ETP<75% · TX ABS≥20%');
+  c.innerHTML=h;
+}
+
+// ── SUB: ÉQUIPE ──
+function renderPresEquipe(c){
+  const teams=uniq(D.presWeek.map(p=>p.equipe)).sort();
+  const wks=uniq(D.presWeek.map(p=>p.sem)).sort();
+  const lastW=wks[wks.length-1];
+  const prevW=wks.length>1?wks[wks.length-2]:null;
+  if(!teams.length){c.innerHTML=mkEmpty('Aucune donnée équipe');return;}
+
+  let h=`<div class="sh"><div class="shb"></div><div class="sht">Présence par équipe — ${fmtSem(lastW)}</div></div>`;
+  h+=`<div class="tw"><table><thead><tr>
+    <th>Équipe</th><th>Pros</th><th>NB Plan.</th><th>NB Prés.</th><th>Total HP</th><th>ETP</th><th>Eff. ETP</th><th>TX ABS</th><th>TX Retard</th><th>Jours saisis</th><th>Statut</th>
+  </tr></thead><tbody>`;
+  teams.forEach(eq=>{
+    const pw=D.presWeek.filter(p=>p.equipe===eq&&p.sem===lastW);
+    if(!pw.length)return;
+    const totPl=pw.reduce((s,p)=>s+p.plan,0);
+    const totPr=pw.reduce((s,p)=>s+p.pres,0);
+    const totHp=pw.reduce((s,p)=>s+p.hp,0);
+    const etp=totHp/40;
+    const ef=totPl>0?totHp/(totPl*8):0;
+    const avgAbs=totPl?pw.reduce((s,p)=>s+p.plan*p.txAbs,0)/totPl:0;
+    const avgRet=totPl?pw.reduce((s,p)=>s+p.plan*p.txRet,0)/totPl:0;
+    const stat=ef>=0.9&&avgAbs<0.10?'🟢':ef>=0.75&&avgAbs<0.20?'🟡':'🔴';
+    const nbPros=pw.length;
+    const dailyEq=D.presDaily.filter(d=>d.equipe===eq&&d.sem===lastW);
+    const saisis=nbPros>0?uniq(dailyEq.filter(d=>d.code&&d.code!=='—'&&d.code!=='0').map(d=>d.date)).length:0;
+    const totalDays=nbPros*5;
+    h+=`<tr>
+      <td>${eq.split('_').slice(-2).join(' ')}</td>
+      <td>${nbPros}</td>
+      <td>${totPl.toFixed(1)}</td><td>${totPr.toFixed(1)}</td>
+      <td>${totHp.toFixed(0)}h</td>
+      <td>${etp.toFixed(2)}</td>
+      <td><span class="b ${ef>=0.9?'bg':ef>=0.75?'ba':'br'}">${(ef*100).toFixed(1)}%</span></td>
+      <td><span class="b ${avgAbs<0.05?'bg':avgAbs<0.08?'ba':'br'}">${(avgAbs*100).toFixed(1)}%</span></td>
+      <td><span class="b ${avgRet<0.02?'bg':avgRet<0.05?'ba':'br'}">${(avgRet*100).toFixed(1)}%</span></td>
+      <td><span class="b ${saisis>=totalDays?'bg':saisis>0?'ba':'br'}" title="${saisis} jours saisis sur ${totalDays}">${saisis}/${totalDays}</span></td>
+      <td style="text-align:center;font-size:15px">${stat}</td>
+    </tr>`;
+  });
+  h+=`</tbody></table></div>`;
+
+  // Graphique ETP par équipe (historique)
+  const colors=['#1A2565','#2B3A9B','#4A5BAA','#7B8FC4'];
+  h+=`<div class="ch2">
+    <div class="cc"><div class="ct">ETP — Évolution par équipe</div><div class="cw" style="height:190px"><canvas id="c-peq-etp"></canvas></div></div>
+    <div class="cc"><div class="ct">TX Absentéisme — Évolution (%)</div><div class="cw" style="height:190px"><canvas id="c-peq-abs"></canvas></div></div>
+  </div>`;
+
+  // Alertes
+  h+=`<div class="sh"><div class="shb"></div><div class="sht">Alertes — ${fmtSem(lastW)}</div></div><div class="cg">`;
+  teams.forEach(eq=>{
+    const pw=D.presWeek.filter(p=>p.equipe===eq&&p.sem===lastW);
+    if(!pw.length)return;
+    const totHp=pw.reduce((s,p)=>s+p.hp,0);
+    const totPl=pw.reduce((s,p)=>s+p.plan,0);
+    const ef=totPl>0?totHp/(totPl*8):0;
+    const avgAbs=totPl?pw.reduce((s,p)=>s+p.plan*p.txAbs,0)/totPl:0;
+    const critAbs=pw.filter(p=>p.txAbs>=0.08);
+    const items=[];
+    if(ef<0.75)items.push({t:'al',tit:`ETP faible — ${(totHp/40).toFixed(2)} (eff. ${(ef*100).toFixed(0)}%)`,bdy:'Capacité productive < 75%. Analyser les causes.'});
+    else if(ef>=0.90)items.push({t:'ok',tit:`ETP optimal — ${(totHp/40).toFixed(2)} (eff. ${(ef*100).toFixed(0)}%)`,bdy:'Équipe proche du plein potentiel productif.'});
+    if(critAbs.length)items.push({t:'al',tit:`${critAbs.length} prospecteur(s) avec TX ABS critique`,bdy:critAbs.map(p=>`${p.nom}: ${(p.txAbs*100).toFixed(0)}%`).join(' · ')});
+    else if(avgAbs<0.03)items.push({t:'ok',tit:`Absentéisme faible (${(avgAbs*100).toFixed(1)}% moy.)`,bdy:'Bonne mobilisation de l\'équipe.'});
+    if(!items.length)items.push({t:'info',tit:'Situation stable',bdy:'Indicateurs dans les seuils normaux.'});
+    h+=`<div><div style="font-size:10px;font-weight:700;color:var(--deep);margin-bottom:4px;text-transform:uppercase">${eq.split('_').slice(-2).join(' ')}</div>`;
+    h+=items.map(mkCstCard).join('')+'</div>';
+  });
+  h+=`</div>`;
+  h+=mkLeg('ETP=Total HP÷40h · Eff.ETP=ETP÷(NB Planifié÷5)','🟢 Eff.≥90% · TX ABS<5%   🟡 Eff. 75–90% · TX ABS 5–20%   🔴 Eff.<75% · TX ABS≥20%');
+  c.innerHTML=h;
+
+  const lbl=wks.map(w=>fmtSem(w));
+  mkCh('c-peq-etp',{labels:lbl,datasets:teams.map((eq,i)=>({
+    label:eq.split('_').slice(-2).join(' '),
+    data:wks.map(w=>{const pw=D.presWeek.filter(p=>p.equipe===eq&&p.sem===w);return pw.length?+(pw.reduce((s,p)=>s+p.hp,0)/40).toFixed(2):null;}),
+    borderColor:colors[i%colors.length],backgroundColor:colors[i%colors.length]+'22',
+    fill:true,borderWidth:2.5,tension:.4,pointRadius:4,spanGaps:true,
+  }))},{y:{ticks:{font:{size:9.5}}}});
+
+  mkCh('c-peq-abs',{labels:lbl,datasets:teams.map((eq,i)=>({
+    label:eq.split('_').slice(-2).join(' '),
+    data:wks.map(w=>{const pw=D.presWeek.filter(p=>p.equipe===eq&&p.sem===w);const pl=pw.reduce((s,p)=>s+p.plan,0);return pl?+(pw.reduce((s,p)=>s+p.plan*p.txAbs,0)/pl*100).toFixed(1):null;}),
+    borderColor:colors[i%colors.length],borderWidth:2.5,tension:.4,pointRadius:4,fill:false,spanGaps:true,
+  }))},{y:{ticks:{callback:v=>v+'%'},suggestedMin:0}});
+}
+
+// ── SUB: GLOBAL ──
+function renderPresGlobal(c){
+  const wks=uniq(D.presWeek.map(p=>p.sem)).sort();
+  const teams=uniq(D.presWeek.map(p=>p.equipe)).sort();
+  const lastW=wks[wks.length-1];
+  if(!lastW){c.innerHTML=mkEmpty('Aucune donnée globale');return;}
+
+  const allLast=D.presWeek.filter(p=>p.sem===lastW);
+  const totPl=allLast.reduce((s,p)=>s+p.plan,0);
+  const totPr=allLast.reduce((s,p)=>s+p.pres,0);
+  const totHp=allLast.reduce((s,p)=>s+p.hp,0);
+  const avgAbs=totPl?allLast.reduce((s,p)=>s+p.plan*p.txAbs,0)/totPl:0;
+  const avgRet=totPl?allLast.reduce((s,p)=>s+p.plan*p.txRet,0)/totPl:0;
+  const etpTot=totHp/40;
+  const ef=totPl>0?totHp/(totPl*8):0;
+
+  let h=`<div class="sh"><div class="shb"></div><div class="sht">Vue globale — ${fmtSem(lastW)}</div><div class="shs">${teams.length} équipes · ${allLast.length} prospecteurs</div></div>`;
+  h+=`<div class="kg k6" style="margin-bottom:20px">
+    <div class="kc d"><div class="kl">NB Planifié</div><div class="kv d">${totPl.toFixed(1)}</div><div class="ks">pers-jours</div></div>
+    <div class="kc ${ef>=0.9?'g':ef>=0.75?'a':'r'}"><div class="kl">NB Présent</div><div class="kv ${ef>=0.9?'g':ef>=0.75?'a':'r'}">${totPr.toFixed(1)}</div><div class="ks">${(totPr/totPl*100).toFixed(1)}%</div></div>
+    <div class="kc m"><div class="kl">Total HP</div><div class="kv m">${totHp.toFixed(0)}h</div><div class="ks">heures productives</div></div>
+    <div class="kc ${ef>=0.9?'g':ef>=0.75?'a':'r'}"><div class="kl">ETP Global</div><div class="kv ${ef>=0.9?'g':ef>=0.75?'a':'r'}">${etpTot.toFixed(2)}</div><div class="ks">eff. ${(ef*100).toFixed(1)}%</div></div>
+    <div class="kc ${avgAbs<0.05?'g':avgAbs<0.08?'a':'r'}"><div class="kl">TX ABS moy.</div><div class="kv ${avgAbs<0.05?'g':avgAbs<0.08?'a':'r'}">${(avgAbs*100).toFixed(1)}%</div><div class="ks">cible &lt;10%</div></div>
+    <div class="kc ${avgRet<0.02?'g':avgRet<0.05?'a':'r'}"><div class="kl">TX Retard moy.</div><div class="kv ${avgRet<0.02?'g':avgRet<0.05?'a':'r'}">${(avgRet*100).toFixed(1)}%</div><div class="ks">cible &lt;5%</div></div>
+  </div>`;
+
+  // Tableau comparatif global toutes semaines
+  h+=`<div class="sh"><div class="shb"></div><div class="sht">Récapitulatif hebdomadaire — Toutes équipes</div></div>`;
+  h+=`<div class="tw"><table><thead><tr><th>Équipe</th><th>Semaine</th><th>NB Plan.</th><th>NB Prés.</th><th>HP (h)</th><th>ETP</th><th>Eff. ETP</th><th>TX ABS</th><th>TX Retard</th><th>Statut</th></tr></thead><tbody>`;
+  teams.forEach(eq=>{
+    wks.slice().reverse().forEach(w=>{
+      const pw=D.presWeek.filter(p=>p.equipe===eq&&p.sem===w);
+      if(!pw.length)return;
+      const totPl=pw.reduce((s,p)=>s+p.plan,0);
+      const totHp=pw.reduce((s,p)=>s+p.hp,0);
+      const etp=totHp/40;
+      const ef=totPl?totHp/(totPl*8):0;
+      const avgAbs=totPl?pw.reduce((s,p)=>s+p.plan*p.txAbs,0)/totPl:0;
+      const avgRet=totPl?pw.reduce((s,p)=>s+p.plan*p.txRet,0)/totPl:0;
+      const stat=ef>=0.9&&avgAbs<0.10?'🟢':ef>=0.75&&avgAbs<0.20?'🟡':'🔴';
+      const isLast=w===lastW;
+      h+=`<tr${isLast?' style="font-weight:700;background:var(--ultra)"':''}>
+        <td>${eq.split('_').slice(-2).join(' ')}</td><td>${fmtSem(w)}</td>
+        <td>${totPl.toFixed(1)}</td><td>${pw.reduce((s,p)=>s+p.pres,0).toFixed(1)}</td>
+        <td>${totHp.toFixed(0)}h</td><td>${etp.toFixed(2)}</td>
+        <td><span class="b ${ef>=0.9?'bg':ef>=0.75?'ba':'br'}">${(ef*100).toFixed(1)}%</span></td>
+        <td><span class="b ${avgAbs<0.05?'bg':avgAbs<0.08?'ba':'br'}">${(avgAbs*100).toFixed(1)}%</span></td>
+        <td><span class="b ${avgRet<0.02?'bg':avgRet<0.05?'ba':'br'}">${(avgRet*100).toFixed(1)}%</span></td>
+        <td style="text-align:center;font-size:15px">${stat}</td>
+      </tr>`;
+    });
+  });
+  h+=`</tbody></table></div>`;
+  h+=mkLeg('ETP=Total HP÷40h · Eff.ETP=Total HP÷(NB Planifié×8h)','🟢 Eff.≥90% · TX ABS<5%   🟡 Eff.75–90% · TX ABS 5–20%   🔴 Eff.<75% · TX ABS≥20%');
+  c.innerHTML=h;
+}
+
+// ════════════════════════════════════════════════════════
+// CHART HELPER
+// ════════════════════════════════════════════════════════
+Chart.defaults.font.family='Segoe UI,system-ui,sans-serif';
+Chart.defaults.color='#5A6A8A';
+
+function mkCh(id,data,extraScales={},showLegend=true){
+  const el=document.getElementById(id);if(!el)return;
+  const type=extraScales.type||'line';
+  delete extraScales.type;
+  charts[id]=new Chart(el,{
+    type,data,
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:showLegend,position:'bottom',labels:{boxWidth:11,padding:10,font:{size:10}}}},
+      scales:{
+        x:{grid:{display:false},ticks:{font:{size:9.5}}},
+        y:{grid:{color:'#EEF2FA'},ticks:{font:{size:9.5}}},
+        ...extraScales,
+      }
+    }
+  });
+}
+
+function destroyCharts(){Object.values(charts).forEach(c=>{try{c.destroy()}catch(e){}});charts={};}
+
+// ════════════════════════════════════════════════════════
+// UTILS
+// ════════════════════════════════════════════════════════
+const n = v => {
+  if (v === null || v === undefined || v === '') return 0;
+  if (typeof v === 'number') return isNaN(v) ? 0 : v;
+  let str = String(v).replace(/\xa0/g,'').replace(/\s/g,'').trim();
+  if (!str) return 0;
+  const lc = str.lastIndexOf(','), ld = str.lastIndexOf('.');
+  if (lc > ld) { str = str.replace(/\./g,'').replace(',','.'); }
+  else if (ld > lc) { str = str.replace(/,/g,''); }
+  else { str = str.replace(/[,.]/g,''); }
+  const num = parseFloat(str);
+  return isNaN(num) ? 0 : num;
+};
+const pct = (v,d=2) => (+v||0).toFixed(d)+'%';
+const clean = v => v?String(v).trim():'';
+const uniq  = arr => [...new Set(arr.filter(Boolean))];
+const initials = nom => nom.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+const escAttr = s => String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/\s/g,'_');
+const roleLabel = r => ({admin:'Manager',n1:'Direction N+1',prospecteur:'Prospecteur'}[r]||r);
+const mkEmpty = msg => `<div class="empty"><div class="empty-icon">📭</div><div>${msg}</div></div>`;
+const mkLeg = (a,b) => `<div class="leg"><strong>Légendes :</strong> ${a}<br><strong>Seuils :</strong> ${b}</div>`;
+
+function eur(v){
+  if(!v||Math.abs(v)<0.01)return'—';
+  const abs=Math.abs(v),sign=v<0?'-':'';
+  return abs>=1000?sign+(abs/1000).toFixed(1)+'K€':sign+abs.toFixed(0)+'€';
+}
+function fmtSem(s){
+  if(!s)return'—';const str=String(s);
+  if(str.length===6)return`S${str.slice(4)} (${str.slice(0,4)})`;
+  return str;
+}
+function fmtMois(m){
+  if(!m)return'—';const str=String(m);
+  if(str.length===6){const mo=['','Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];return mo[+str.slice(4)]||str.slice(4);}
+  return str;
+}
+
+function kcard(label,value,sub,colorClass,trendObj){
+  return`<div class="kc ${colorClass}">
+    <div class="kl">${label}</div>
+    <div class="kv ${colorClass}">${value}</div>
+    ${sub?`<div class="ks">${sub}</div>`:''}
+    ${trendObj?`<div class="kt ${trendObj.c}">${trendObj.i}</div>`:''}
+  </div>`;
+}
+
+function selPros(nom){
+  const el=document.getElementById('ms-pros');
+  el.querySelectorAll('[data-val] input').forEach(cb=>{cb.checked=cb.value===nom;});
+  syncAllCheckbox('ms-pros');
+  MSS.pros=[nom];
+  el.querySelector('.ms-lbl').textContent=nom;
+  setView('prospecteur',document.querySelector('.vtab[data-view="prospecteur"]'));
+}
+
+function selTeam(eq){
+  const el=document.getElementById('ms-eq');
+  el.querySelectorAll('[data-val] input').forEach(cb=>{cb.checked=cb.value===eq;});
+  syncAllCheckbox('ms-eq');
+  MSS.eq=[eq];
+  el.querySelector('.ms-lbl').textContent=eq;
+  const elP=document.getElementById('ms-pros');
+  elP.querySelectorAll('input').forEach(cb=>cb.checked=true);
+  MSS.pros=[];
+  elP.querySelector('.ms-lbl').textContent='Tous';
+  setView('equipe',document.querySelector('.vtab[data-view="equipe"]'));
+}
+
+function syncAllCheckbox(id){
+  const el=document.getElementById(id);
+  const cbs=[...el.querySelectorAll('[data-val] input')];
+  const allCb=el.querySelector('.all-opt input');
+  const chk=cbs.filter(c=>c.checked).length;
+  allCb.checked=chk===cbs.length;
+  allCb.indeterminate=chk>0&&chk<cbs.length;
+}
+</script>
+</body>
+</html>
