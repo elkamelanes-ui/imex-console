@@ -207,6 +207,9 @@ tfoot td:first-child{text-align:left}
 .sync-err{color:#FCA5A5;font-size:10px}
 
 
+.btn-back{display:inline-flex;align-items:center;gap:5px;background:var(--white);border:1.5px solid var(--gl);color:var(--gt);padding:5px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;margin-bottom:14px}
+.btn-back:hover{border-color:var(--royal);color:var(--royal);background:var(--ultra)}
+
 /* ── PRÉSENCE ── */
 .pday{display:inline-flex;flex-direction:column;align-items:center;gap:2px;min-width:52px;padding:6px 4px;border-radius:8px;border:1px solid var(--gl)}
 .pday-d{font-size:8.5px;color:var(--gt);font-weight:700;text-transform:uppercase;letter-spacing:.06em}
@@ -661,40 +664,51 @@ async function loadSheets() {
         vvhtC:  n(r['MNTVTE_HT cde']),
       }));
 
-    // RE — structure plate: A=Acheteur, B=NEST, C=Retard, D→J=J à J+6, K=Total à faire, L=Portfolio
+    // RE — lecture directe par nom de colonne (robuste vs ordre GSheets)
     setStep('🔁 Chargement Relances...');
     const reRaw = await fetchSheet(SHEET_RE, '🔁 Relances...');
     D.re = [];
     if (reRaw.length > 0) {
       const reH = Object.keys(reRaw[0]);
-      // Si même structure COGNOS → ignorer
-      if (!(reH[0]==='Mois' && reH[1]==='Semaine')) {
-        const retK = reH.find(h=>/nbre.relance|nbre.retard|^retard$/i.test(h)) || reH[3] || '';
-        const afK  = reH.find(h=>/total.relance.*faire|total.*j.*j/i.test(h)) || reH[11] || '';
-        const totK = reH[reH.length-1] || '';
-        const jK   = ['J','J+1','J+2','J+3','J+4','J+5','J+6']
-                       .map(k => reH.find(h => h.trim()===k) || '');
-        // Structure réelle : Col A=Equipe(sparse) | Col B=Acheteur(nom) | Col C=NEST | Col D=Retard | J→J+6 | Total
-        let curEq = '';
-        reRaw.forEach(r => {
-          const v   = Object.values(r);
-          const eq  = String(v[0]||'').trim();
-          const nom = String(v[1]||'').trim(); // Col B = Acheteur = le vrai nom
-          // Tracker l'équipe sparse (remplie seulement sur la 1ère ligne de chaque groupe)
-          if (eq && !eq.startsWith('Total') && eq !== reH[0]) curEq = eq;
-          if (!nom || nom.startsWith('Total') || nom === reH[1] || nom === reH[0]) return;
-          D.re.push({
-            equipe: curEq,
-            nom,
-            retard: n(r[retK]) || Number(v[3]) || 0,
-            j:n(r[jK[0]]),j1:n(r[jK[1]]),j2:n(r[jK[2]]),
-            j3:n(r[jK[3]]),j4:n(r[jK[4]]),j5:n(r[jK[5]]),j6:n(r[jK[6]]),
-            afaire: n(r[afK])  || Number(v[11]) || 0,
-            total:  n(r[totK]) || Number(v[12]) || 0,
-          });
+      console.log('[RE] headers détectés:', reH.join(' | '));
+      // Détection auto des colonnes par nom (insensible à l'ordre)
+      const colEq  = reH.find(h=>/^equipe$/i.test(h.trim()))   || null;
+      const colNom = reH.find(h=>/^acheteur$|^nom$|^prospecteur$/i.test(h.trim())) || null;
+      const colRet = reH.find(h=>/retard/i.test(h))            || null;
+      const colJ   = reH.find(h=>/^j$/i.test(h.trim()))        || null;
+      const colJ1  = reH.find(h=>/^j\+1$/i.test(h.trim()))     || null;
+      const colJ2  = reH.find(h=>/^j\+2$/i.test(h.trim()))     || null;
+      const colJ3  = reH.find(h=>/^j\+3$/i.test(h.trim()))     || null;
+      const colJ4  = reH.find(h=>/^j\+4$/i.test(h.trim()))     || null;
+      const colJ5  = reH.find(h=>/^j\+5$/i.test(h.trim()))     || null;
+      const colJ6  = reH.find(h=>/^j\+6$/i.test(h.trim()))     || null;
+      const colAf  = reH.find(h=>/total.*j.*j|j.*j.*total/i.test(h)) || null;
+      const colTot = reH[reH.length-1]                          || null;
+      console.log('[RE] cols:', {colEq,colNom,colRet,colJ,colAf,colTot});
+      let curEq = '';
+      reRaw.forEach((r,i) => {
+        const v   = Object.values(r);
+        // Lire par nom de colonne en priorité, sinon par position
+        const eq  = clean(colEq  ? r[colEq]  : v[0] || '');
+        const nom = clean(colNom ? r[colNom] : v[1] || '');
+        if (eq && !/^equipe$|^total/i.test(eq) && eq.length > 2) curEq = eq;
+        if (!nom || nom.length < 2 || /^acheteur$|^nom$|^equipe$|^total/i.test(nom)) return;
+        D.re.push({
+          equipe: curEq,
+          nom,
+          retard: n(colRet ? r[colRet] : v[3]),
+          j:  n(colJ  ? r[colJ]  : v[4]),
+          j1: n(colJ1 ? r[colJ1] : v[5]),
+          j2: n(colJ2 ? r[colJ2] : v[6]),
+          j3: n(colJ3 ? r[colJ3] : v[7]),
+          j4: n(colJ4 ? r[colJ4] : v[8]),
+          j5: n(colJ5 ? r[colJ5] : v[9]),
+          j6: n(colJ6 ? r[colJ6] : v[10]),
+          afaire: n(colAf  ? r[colAf]  : v[11]),
+          total:  n(colTot ? r[colTot] : v[12]),
         });
-        console.log('[RE]', D.re.length, D.re.slice(0,3).map(r=>r.nom+':'+r.retard).join(' | '));
-      } else { console.warn('[RE] Structure COGNOS dans onglet RE'); }
+      });
+      console.log('[RE]', D.re.length, 'relances:', D.re.slice(0,4).map(r=>`${r.nom}(ret:${r.retard},tot:${r.total})`).join(' | '));
     }
 
     // PRÉSENCE — lecture directe des onglets mensuels (Mai, Juin, etc.)
@@ -707,41 +721,48 @@ async function loadSheets() {
     console.log('[Présence] Total presWeek:', D.presWeek.length, '| presDaily:', D.presDaily.length);
 
 
-    // COUV — Structure réelle : Acheteur Sell | Equipe Sell | Nb Appels (OUI/NON) | Nb Appels utile (OUI/NON)
-    // Chaque ligne = un contact. On agrège par acheteur pour calculer txCouv.
+    // COUV — Acheteur Sell | Equipe Sell | Nb Appels | Nb Appels utile
+    // Logique : chaque ligne = un contact dans le portefeuille.
+    // On agrège par EQUIPE (lien avec les prospecteurs) ET par nom (fallback).
     try {
       const couvResp = await fetch(sheetUrl(SHEET_COUV));
       const couvRaw  = await couvResp.text();
       if (couvRaw.trim().startsWith('<')) throw new Error('HTML reçu — COUV pas publié');
       const couvLines = couvRaw.split(/\r?\n/);
-      console.log('[COUV] lignes totales:', couvLines.length, '| 1ère:', couvLines[0]?.slice(0,60));
-      // Chercher la ligne d'en-têtes (contient Acheteur ou Equipe)
       const hIdx = couvLines.findIndex(l => /acheteur|equipe/i.test(l));
-      console.log('[COUV] header ligne:', hIdx);
       const cleanCouv = couvLines.slice(hIdx>=0?hIdx:0).join('\n');
       const couvData = await new Promise(res =>
         Papa.parse(cleanCouv, {header:true, skipEmptyLines:true, complete:r=>res(r.data)})
       );
-      console.log('[COUV] rows parsed:', couvData.length, '| 1ère:', JSON.stringify(Object.values(couvData[0]||{}).slice(0,4)));
-      // Agréger par Acheteur Sell
-      const byAch = {};
+      const couvH = couvData.length ? Object.keys(couvData[0]) : [];
+      // Détection des colonnes par nom
+      const cAch  = couvH.find(h=>/acheteur/i.test(h))   || couvH[0];
+      const cEq   = couvH.find(h=>/equipe/i.test(h))     || couvH[1];
+      const cApp  = couvH.find(h=>/nb.appels$/i.test(h)) || couvH[2];
+      const cUtil = couvH.find(h=>/utile/i.test(h))      || couvH[3];
+      console.log('[COUV]', couvData.length, 'lignes | cols:', cAch, '/', cEq, '/', cApp, '/', cUtil);
+      // Agréger par équipe (lien primaire) et par nom (lien secondaire)
+      const byEq = {}, byNom = {};
       couvData.forEach(r => {
-        const v = Object.values(r);
-        const nom    = String(v[0]||'').trim();
-        const equipe = String(v[1]||'').trim();
-        const appOui      = String(v[2]||'').trim().toUpperCase() === 'OUI';
-        const appUtileOui = String(v[3]||'').trim().toUpperCase() === 'OUI';
-        if (!nom || /^acheteur|^equipe/i.test(nom) || nom.startsWith('Total')) return;
-        if (!byAch[nom]) byAch[nom] = {equipe, nom, total:0, util:0, nonUtil:0};
-        byAch[nom].total++;
-        if (appOui) byAch[nom].util++;
-        else byAch[nom].nonUtil++;
+        const nom    = clean(r[cAch] || '');
+        const equipe = clean(r[cEq]  || '');
+        const utilOui = /^oui$/i.test(String(r[cUtil]||'').trim());
+        if (!nom || /^acheteur|^nom|^total/i.test(nom)) return;
+        // Par équipe
+        if (equipe) {
+          if (!byEq[equipe]) byEq[equipe] = {equipe, nom:'EQ:'+equipe, total:0, util:0};
+          byEq[equipe].total++;
+          if (utilOui) byEq[equipe].util++;
+        }
+        // Par nom (pour match direct si le nom est un prospecteur)
+        if (!byNom[nom]) byNom[nom] = {equipe, nom, total:0, util:0};
+        byNom[nom].total++;
+        if (utilOui) byNom[nom].util++;
       });
-      D.couv = Object.values(byAch).map(c => ({
-        ...c,
-        txCouv: c.total > 0 ? c.util / c.total : 0,
-      }));
-      console.log('[COUV]', D.couv.length, D.couv.map(c=>c.nom+':'+c.txCouv.toFixed(2)).join(' | '));
+      const mkC = o => ({...o, nonUtil:o.total-o.util, txCouv:o.total>0?o.util/o.total:0});
+      D.couv = [...Object.values(byEq).map(mkC), ...Object.values(byNom).map(mkC)];
+      console.log('[COUV]', Object.keys(byEq).length, 'équipes,', Object.keys(byNom).length, 'noms individuels');
+      console.log('[COUV] équipes:', Object.keys(byEq).join(' | '));
     } catch(e) { D.couv=[]; console.error('[COUV]',e); }
 
     lastSync = new Date();
@@ -759,20 +780,18 @@ function updateDataStatus() {
   const el = document.getElementById('dstatus');
   if(!el) return;
   el.style.display = 'flex';
-  // Build COUV detail message
-  const couvNames = D.couv.slice(0,2).map(c=>c.nom.split(' ').slice(-1)[0]).join(', ');
-  const couvMsg   = D.couv.length>0 ? `${D.couv.length} pros (${couvNames}${D.couv.length>2?'…':''})` : null;
-  // Check if COUV names match any COGNOS names
-  const couvMatchCount = D.couv.filter(c=>D.cognos.some(g=>namesMatch(g.nom,c.nom))).length;
-  const couvWarn = D.couv.length>0 && couvMatchCount===0;
+  const couvByEq  = D.couv.filter(c=>c.nom.startsWith('EQ:'));
+  const couvByNom = D.couv.filter(c=>!c.nom.startsWith('EQ:'));
+  const couvMatchCount = couvByNom.filter(c=>D.cognos.some(g=>namesMatch(g.nom,c.nom))).length
+                       + couvByEq.filter(c=>D.cognos.some(g=>c.equipe===g.equipe)).length;
 
   const items = [
     {label:'COGNOS', ok:D.cognos.length>0, msg:D.cognos.length>0?`${D.cognos.length} lignes`:'Onglet COGNOS vide'},
     {label:'RE', ok:D.re.length>0, msg:D.re.length>0?`${D.re.length} lignes`:'Structure COGNOS — coller données Relances'},
     {label:'COUV', ok:D.couv.length>0&&couvMatchCount>0, warn:D.couv.length>0&&couvMatchCount===0,
       msg:D.couv.length===0?'Onglet COUV vide':
-          couvMatchCount>0?`${D.couv.length} pros (${couvMatchCount} identifiés)`:
-          `${couvMsg} — noms non reconnus (vérifier format)`},
+          couvMatchCount>0?`${couvByEq.length} équipes · ${couvByNom.length} noms`:
+          `Chargé (${D.couv.length}) — aucun lien équipe trouvé`},
     {label:'Présence', ok:D.presWeek.length>0,
       msg:D.presWeek.length>0?`${D.presWeek.length} lignes`:'Onglet non trouvé — vérifier GSheet'},
   ];
@@ -1086,10 +1105,25 @@ function namesMatch(a, b) {
 function reForNom(nom)     { return D.re.find(r=>namesMatch(r.nom,nom))||null; }
 function findPresWeek(nom) { return D.presWeek.filter(pw=>namesMatch(pw.nom,nom)); }
 function findPresDaily(nom){ return D.presDaily.filter(pd=>namesMatch(pd.nom,nom)); }
-function couvForNom(nom)   { return D.couv.find(r=>namesMatch(r.nom,nom))||null; }
+function couvForNom(nom) {
+  // 1. Chercher par nom direct (si le prospecteur figure dans Acheteur Sell)
+  const byName = D.couv.find(r => !r.nom.startsWith('EQ:') && namesMatch(r.nom, nom));
+  if (byName) return byName;
+  // 2. Chercher par équipe du prospecteur (lien primaire dans COUV)
+  const prosRow = D.cognos.find(r => namesMatch(r.nom, nom));
+  if (prosRow) {
+    const byEq = D.couv.find(r => r.nom === 'EQ:' + prosRow.equipe);
+    if (byEq) return byEq;
+    // 3. Essai partiel: équipe COGNOS contient une partie de l'équipe COUV
+    const partial = D.couv.find(r => r.nom.startsWith('EQ:') &&
+      (prosRow.equipe.includes(r.equipe) || r.equipe.includes(prosRow.equipe.split('_').slice(-2).join('_'))));
+    if (partial) return partial;
+  }
+  return null;
+}
 
-const couvFor   = nom=>D.couv.find(r=>namesMatch(r.nom,nom))||null;
-const couvEqFor = eq=>D.couv.filter(r=>r.equipe===eq);
+const couvFor   = nom => couvForNom(nom);
+const couvEqFor = eq  => D.couv.filter(r => r.nom === 'EQ:'+eq || r.equipe === eq);
 const fmtCouv   = v=>(v*100).toFixed(1)+'%';
 const etpFor    = nom=>D.etp.find(r=>r.nom===nom)||null;
 const ragKv     = (v,ok,warn)=>v>=ok?'g':v>=warn?'a':'r';
@@ -1177,6 +1211,7 @@ function renderPros(){
   const hist=wks.map(w=>({w,k:kpis(agg(fc({pros:[nom],sem:[w]})))}));
 
   let h=`
+  <button class="btn-back" onclick="goBackToProslist()">← Retour à la liste</button>
   <div class="ph">
     <div class="ph-av">${initials(nom)}</div>
     <div>
@@ -2057,6 +2092,15 @@ function kcard(label,value,sub,colorClass,trendObj){
     ${sub?`<div class="ks">${sub}</div>`:''}
     ${trendObj?`<div class="kt ${trendObj.c}">${trendObj.i}</div>`:''}
   </div>`;
+}
+
+function goBackToProslist(){
+  const el=document.getElementById('ms-pros');
+  el.querySelectorAll('[data-val] input').forEach(cb=>cb.checked=true);
+  syncAllCheckbox('ms-pros');
+  MSS.pros=[];
+  el.querySelector('.ms-lbl').textContent='Tous';
+  renderAll();
 }
 
 function selPros(nom){
